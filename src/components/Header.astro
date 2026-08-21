@@ -28,7 +28,7 @@ const projects = (await getCollection('projects'))
 	<nav aria-label="Main navigation">
 		{links.slice(0, 2).map((link) => <a class="nav-link" href={link.href} aria-current={active === link.id ? 'page' : undefined}>{link.label}</a>)}
 		<div class="project-menu">
-			<button class="nav-link project-trigger" type="button" aria-current={active === 'projects' ? 'page' : undefined} aria-haspopup="true" aria-expanded="false">PROJECTS</button>
+			<button class="nav-link project-trigger" type="button" aria-current={active === 'projects' ? 'page' : undefined} aria-haspopup="true" aria-expanded="false">PROJECTS +</button>
 			<div class="dropdown">
 				{projects.map((project) => <a href={project.href}>{project.label}</a>)}
 			</div>
@@ -67,7 +67,7 @@ const projects = (await getCollection('projects'))
 	.logo img { display: block; width: 170px; height: 31px; object-fit: contain; object-position: left center; }
 	nav { display: flex; align-items: center; gap: 28px; }
 	.nav-link { position: relative; font-size: 13px; line-height: 1; letter-spacing: .04em; white-space: nowrap; }
-	.project-trigger { appearance: none; border: 0; margin: 0; padding: 0; color: inherit; background: transparent; }
+	.project-trigger { appearance: none; border: 0; margin: 0; padding: 0; color: inherit; background: transparent; transform: translateY(-1px); }
 	.nav-link::after { content: ''; position: absolute; left: 0; right: 100%; bottom: -5px; height: 1px; background: #000; transition: right .25s ease; }
 	.nav-link:hover::after, .nav-link:focus-visible::after, .nav-link[aria-current='page']::after { right: 0; }
 	.project-menu { position: relative; }
