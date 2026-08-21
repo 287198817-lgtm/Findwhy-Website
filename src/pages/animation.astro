@@ -1,0 +1,16 @@
+---
+import { readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import Gallery from '../components/Gallery.astro';
+import PortfolioLayout from '../layouts/PortfolioLayout.astro';
+
+const numericSort = new Intl.Collator('en', { numeric: true }).compare;
+const animations = readdirSync(join(process.cwd(), 'public/media/animation'))
+	.filter((file) => /\.(mp4|webm|mov)$/i.test(file))
+	.sort(numericSort)
+	.map((file, index) => ({ src: `/media/animation/${encodeURIComponent(file)}`, number: index + 1 }));
+---
+
+<PortfolioLayout title="Findwhy — Animation" description="Findwhy animation portfolio." active="animation">
+	<Gallery items={animations} type="video" />
+</PortfolioLayout>

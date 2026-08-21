@@ -1,0 +1,36 @@
+---
+interface Props { active?: 'illustration' | 'animation' | 'projects' | 'about' }
+const { active } = Astro.props;
+
+const links = [
+	{ label: 'ILLUSTRATION', href: '/illustration', id: 'illustration' },
+	{ label: 'ANIMATION', href: '/animation', id: 'animation' },
+	{ label: 'PROJECTS', href: '/projects', id: 'projects' },
+	{ label: 'ABOUT', href: '/about', id: 'about' },
+] as const;
+---
+
+<header class="site-header">
+	<a class="logo" href="/illustration" aria-label="Findwhy home">
+		<img src="/findwhy-logo.png" alt="FINDWHY" width="170" height="31" />
+	</a>
+	<nav aria-label="Main navigation">
+		{links.map((link) => <a href={link.href} aria-current={active === link.id ? 'page' : undefined}>{link.label}</a>)}
+	</nav>
+</header>
+
+<style>
+	.site-header { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 50px; }
+	.logo { display: block; flex: 0 0 auto; width: 170px; height: 32px; }
+	.logo img { display: block; width: 170px; height: 31px; object-fit: contain; object-position: left center; }
+	nav { display: flex; align-items: center; gap: 28px; }
+	nav a { position: relative; font-size: 13px; line-height: 1; letter-spacing: .04em; white-space: nowrap; }
+	nav a::after { content: ''; position: absolute; left: 0; right: 100%; bottom: -5px; height: 1px; background: #000; transition: right .25s ease; }
+	nav a:hover::after, nav a:focus-visible::after, nav a[aria-current='page']::after { right: 0; }
+	@media (max-width: 809px) {
+		.site-header { align-items: flex-start; padding: 28px 20px; }
+		.logo, .logo img { width: 122px; height: auto; }
+		nav { display: grid; grid-template-columns: repeat(2, auto); gap: 10px 18px; justify-items: start; }
+		nav a { font-size: 10px; }
+	}
+</style>

@@ -1,0 +1,96 @@
+---
+interface Item { src: string; number: number }
+interface Props { items: Item[]; type: 'image' | 'video' }
+const { items, type } = Astro.props;
+const columns = Array.from({ length: 4 }, (_, column) => items.filter((_, index) => index % 4 === column));
+---
+
+<section class="gallery" data-gallery={type} aria-label={type === 'image' ? 'Illustration works' : 'Animation works'}>
+	{columns.map((column) => (
+		<div class="gallery-column">
+			{column.map((item) => type === 'image' ? (
+				<button class="media-item image-item" type="button" data-index={item.number - 1} aria-label={`Open illustration ${item.number}`}>
+					<img src={item.src} alt={`Findwhy illustration ${item.number}`} loading={item.number <= 4 ? 'eager' : 'lazy'} decoding="async" />
+				</button>
+			) : (
+				<div class="media-item video-item">
+					<video muted loop playsinline preload={item.number <= 4 ? 'auto' : 'metadata'} aria-label={`Findwhy animation ${item.number}`}>
+						<source src={item.src} type="video/mp4" />
+					</video>
+				</div>
+			))}
+		</div>
+	))}
+</section>
+
+{type === 'image' && (
+	<dialog class="lightbox" aria-label="Illustration viewer">
+		<button class="close" type="button" aria-label="Close">CLOSE</button>
+		<button class="previous" type="button" aria-label="Previous image">←</button>
+		<img src="" alt="" />
+		<button class="next" type="button" aria-label="Next image">→</button>
+	</dialog>
+)}
+
+<script define:vars={{ items, type }}>
+	if (type === 'video') {
+		const canHover = matchMedia('(hover: hover)').matches;
+		document.querySelectorAll('video').forEach((video) => {
+			if (canHover) {
+				video.addEventListener('pointerenter', () => video.play().catch(() => {}));
+				video.addEventListener('pointerleave', () => { video.pause(); video.currentTime = 0; });
+			} else {
+				new IntersectionObserver(([entry]) => entry.isIntersecting ? video.play().catch(() => {}) : video.pause(), { threshold: .5 }).observe(video);
+			}
+		});
+	}
+
+	if (type === 'image') {
+		const dialog = document.querySelector('.lightbox');
+		const image = dialog?.querySelector('img');
+		let current = 0;
+		const show = (index) => {
+			if (!dialog || !image) return;
+			current = (index + items.length) % items.length;
+			image.src = items[current].src;
+			image.alt = `Findwhy illustration ${current + 1}`;
+			if (!dialog.open) dialog.showModal();
+		};
+		document.querySelectorAll('.image-item').forEach((button) => button.addEventListener('click', () => show(Number(button.dataset.index))));
+		dialog?.querySelector('.close')?.addEventListener('click', () => dialog.close());
+		dialog?.querySelector('.previous')?.addEventListener('click', () => show(current - 1));
+		dialog?.querySelector('.next')?.addEventListener('click', () => show(current + 1));
+		dialog?.addEventListener('click', (event) => event.target === dialog && dialog.close());
+		document.addEventListener('keydown', (event) => {
+			if (!dialog?.open) return;
+			if (event.key === 'ArrowLeft') show(current - 1);
+			if (event.key === 'ArrowRight') show(current + 1);
+		});
+	}
+</script>
+
+<style>
+	.gallery { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 50px; width: 100%; padding: 50px; }
+	.gallery-column { display: flex; flex-direction: column; gap: 50px; min-width: 0; }
+	.media-item { display: block; width: 100%; margin: 0; padding: 0; border: 0; background: transparent; overflow: hidden; }
+	.image-item { cursor: zoom-in; }
+	.media-item img, .media-item video { display: block; width: 100%; height: auto; object-fit: contain; transition: transform .45s ease, opacity .3s ease; }
+	.image-item:hover img, .image-item:focus-visible img { transform: scale(1.015); opacity: .96; }
+	.image-item:focus-visible { outline: 1px solid #000; outline-offset: 5px; }
+	.video-item { cursor: pointer; }
+	.lightbox { width: 100vw; max-width: none; height: 100vh; max-height: none; margin: 0; padding: 35px; border: 0; background: rgba(255,255,255,.98); }
+	.lightbox[open] { display: grid; grid-template-columns: 70px 1fr 70px; align-items: center; justify-items: center; }
+	.lightbox::backdrop { background: rgba(255,255,255,.96); }
+	.lightbox img { grid-column: 2; max-width: 100%; max-height: calc(100vh - 70px); width: auto; height: auto; object-fit: contain; }
+	.lightbox button { border: 0; background: transparent; cursor: pointer; }
+	.close { position: fixed; top: 26px; right: 30px; z-index: 2; font-size: 11px; letter-spacing: .04em; }
+	.previous { grid-column: 1; grid-row: 1; }
+	.next { grid-column: 3; grid-row: 1; }
+	@media (max-width: 809px) {
+		.gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; padding: 42px 20px 60px; }
+		.gallery-column { gap: 24px; }
+		.lightbox { padding: 20px; }
+		.lightbox[open] { grid-template-columns: 40px 1fr 40px; }
+	}
+	@media (max-width: 520px) { .gallery { grid-template-columns: 1fr; } }
+</style>

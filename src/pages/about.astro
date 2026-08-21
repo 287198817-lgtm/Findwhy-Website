@@ -1,0 +1,84 @@
+---
+import PortfolioLayout from '../layouts/PortfolioLayout.astro';
+---
+
+<PortfolioLayout title="Findwhy — About" description="About Findwhy." active="about">
+	<section class="about-intro">
+		<div class="about-copy">
+			<div class="copy-zh">
+				<p>我喜欢想象那些被忽略的事物，过着怎样的生活。</p>
+				<p>Findwhy是一位来自中国济南的独立插画师与艺术家。</p>
+				<p>我通过安静的幽默、视觉隐喻和简洁的造型，描绘普通物件如果拥有生命，</p>
+				<p>会怎样生活、等待、休息、相遇和彼此陪伴。</p>
+				<p>我希望每一张作品，都像一个被偶然发现的小故事。</p>
+			</div>
+			<div class="copy-en">
+				<p>Findwhy is an independent illustrator and artist based in Jinan, China</p>
+				<p>Through quiet humor, visual metaphors and simple forms,</p>
+				<p>I explore how ordinary objects might live, wait, rest,</p>
+				<p>meet and keep one another company.</p>
+				<p>I hope each image feels like a small story discovered by chance.</p>
+			</div>
+		</div>
+		<img class="portrait" src="https://framerusercontent.com/images/pVTLD2WaM1ZslDSiXE0J53GNEY.png?width=1440&height=1921" alt="Findwhy surrounded by illustration work" width="400" height="534" />
+	</section>
+
+	<section class="about-info">
+		<div>
+			<h2>服务 Services</h2>
+			<p>编辑插画</p>
+			<p>品牌合作</p>
+			<p>包装设计</p>
+			<p>产品授权</p>
+			<p>文化与文创产品</p>
+			<p>展览与特别项目</p>
+		</div>
+		<div>
+			<h2>合作客户 Selected Clients</h2>
+			<p>LUXEED</p>
+			<p>Sugar Factory</p>
+			<p>B10 Livehouse</p>
+			<p>Jinan Cultural Project</p>
+		</div>
+		<div>
+			<h2>联系方式 Contact</h2>
+			<p class="contact"><a href="mailto:hello@findwhy.com">hello@findwhy.com</a></p>
+			<p class="contact"><a href="#">Instagram ↗</a></p>
+			<p class="contact"><a href="#">小红书 ↗</a></p>
+		</div>
+	</section>
+</PortfolioLayout>
+
+<style>
+	.about-intro { display: flex; align-items: flex-start; justify-content: space-between; width: min(63%, 1210px); margin: 0 auto; padding: 50px; }
+	.about-copy { display: flex; flex-direction: column; gap: 24px; width: 673px; padding: 94px 0; }
+	.about-copy p { margin: 0; font-size: 16px; line-height: 2; white-space: nowrap; }
+	.portrait { display: block; flex: 0 0 400px; width: 400px; height: auto; aspect-ratio: .7496; object-fit: cover; }
+	.about-info { display: flex; align-items: flex-start; gap: 80px; width: min(65%, 1248px); min-height: 538px; margin: 0 auto; padding: 80px; }
+	.about-info > div { flex: 1 1 0; min-width: 0; }
+	.about-info h2 { margin: 0 0 16px; font-size: 24px; line-height: 1.2; font-weight: 700; }
+	.about-info p { margin: 0; font-size: 16px; line-height: 2; }
+	.about-info .contact { line-height: 3; }
+	.about-info a { color: inherit; text-decoration: none; }
+	@media (max-width: 1500px) {
+		.about-intro { width: 82%; }
+		.about-copy { width: calc(100% - 440px); }
+		.about-copy p { white-space: normal; }
+		.about-info { width: 82%; }
+	}
+	@media (max-width: 1000px) {
+		.about-intro { width: 100%; gap: 50px; padding: 50px; }
+		.about-copy { width: calc(100% - 350px); padding: 60px 0; }
+		.portrait { flex-basis: 300px; width: 300px; }
+		.about-info { width: 100%; gap: 45px; padding: 70px 50px; }
+	}
+	@media (max-width: 700px) {
+		.about-intro { flex-direction: column; gap: 0; padding: 55px 20px 40px; }
+		.about-copy { width: 100%; padding: 0 0 50px; }
+		.about-copy p, .about-info p { font-size: 14px; }
+		.portrait { width: 100%; max-width: 400px; align-self: flex-end; }
+		.about-info { flex-direction: column; gap: 60px; min-height: 0; padding: 60px 20px 100px; }
+		.about-info > div { width: 100%; }
+		.about-info h2 { font-size: 21px; }
+	}
+</style>
