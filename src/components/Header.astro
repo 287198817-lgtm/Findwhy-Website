@@ -28,7 +28,7 @@ const projects = (await getCollection('projects'))
 	<nav aria-label="Main navigation">
 		{links.slice(0, 2).map((link) => <a class="nav-link" href={link.href} aria-current={active === link.id ? 'page' : undefined}>{link.label}</a>)}
 		<div class="project-menu">
-			<span class="nav-link project-trigger" aria-current={active === 'projects' ? 'page' : undefined} aria-haspopup="true">PROJECTS</span>
+			<button class="nav-link project-trigger" type="button" aria-current={active === 'projects' ? 'page' : undefined} aria-haspopup="true" aria-expanded="false">PROJECTS</button>
 			<div class="dropdown">
 				{projects.map((project) => <a href={project.href}>{project.label}</a>)}
 			</div>
@@ -37,12 +37,37 @@ const projects = (await getCollection('projects'))
 	</nav>
 </header>
 
+<script>
+	const projectMenu = document.querySelector<HTMLElement>('.project-menu');
+	const projectTrigger = projectMenu?.querySelector<HTMLButtonElement>('.project-trigger');
+	const touchQuery = window.matchMedia('(hover: none), (pointer: coarse)');
+	const isTouchDevice = () => touchQuery.matches || navigator.maxTouchPoints > 0;
+
+	const closeProjectMenu = () => {
+		projectMenu?.classList.remove('is-open');
+		projectTrigger?.setAttribute('aria-expanded', 'false');
+	};
+
+	projectTrigger?.addEventListener('click', (event) => {
+		if (!isTouchDevice()) return;
+
+		event.stopPropagation();
+		const isOpen = projectMenu?.classList.toggle('is-open') ?? false;
+		projectTrigger.setAttribute('aria-expanded', String(isOpen));
+	});
+
+	document.addEventListener('click', (event) => {
+		if (isTouchDevice() && !projectMenu?.contains(event.target as Node)) closeProjectMenu();
+	});
+</script>
+
 <style>
 	.site-header { display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 30; width: 100%; padding: 50px; }
 	.logo { display: block; flex: 0 0 auto; width: 170px; height: 32px; }
 	.logo img { display: block; width: 170px; height: 31px; object-fit: contain; object-position: left center; }
 	nav { display: flex; align-items: center; gap: 28px; }
 	.nav-link { position: relative; font-size: 13px; line-height: 1; letter-spacing: .04em; white-space: nowrap; }
+	.project-trigger { appearance: none; border: 0; margin: 0; padding: 0; color: inherit; background: transparent; }
 	.nav-link::after { content: ''; position: absolute; left: 0; right: 100%; bottom: -5px; height: 1px; background: #000; transition: right .25s ease; }
 	.nav-link:hover::after, .nav-link:focus-visible::after, .nav-link[aria-current='page']::after { right: 0; }
 	.project-menu { position: relative; }
@@ -51,6 +76,11 @@ const projects = (await getCollection('projects'))
 	.dropdown a { display: block; font-size: 12px; line-height: 1.25; letter-spacing: .02em; white-space: nowrap; }
 	.dropdown a:hover, .dropdown a:focus-visible { opacity: .5; }
 	.project-menu:hover > .dropdown { display: flex; }
+	.project-menu.is-open > .dropdown { display: flex; }
+	@media (hover: none), (pointer: coarse) {
+		.project-menu:hover > .dropdown { display: none; }
+		.project-menu.is-open > .dropdown { display: flex; }
+	}
 	@media (max-width: 809px) {
 		.site-header { align-items: flex-start; padding: 28px 20px; }
 		.logo, .logo img { width: 122px; height: auto; }
