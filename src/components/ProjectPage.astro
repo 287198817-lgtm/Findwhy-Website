@@ -19,23 +19,37 @@ const projectVideoCovers = projectInfo.videoCover ?? [];
 const supportedImage = /\.(?:jpe?g|png|webp)$/i;
 const numericSort = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
 const projectDirectory = path.join(process.cwd(), 'public', 'media', 'projects', project);
-const videoCoverFiles = new Set(projectVideoCovers.filter(Boolean).map((file) => path.basename(file)));
+const isExternalMedia = (file: string) => /^https?:\/\//i.test(file);
+const mediaFileName = (file: string) => isExternalMedia(file)
+	? path.basename(new URL(file).pathname)
+	: path.basename(file);
+const videoCoverFiles = new Set(projectVideoCovers
+	.filter(Boolean)
+	.map(mediaFileName));
 const directoryImages = projectInfo.images.length === 0
 	? (await readdir(projectDirectory).catch(() => []))
 		.filter((file) => supportedImage.test(file) && !videoCoverFiles.has(file))
 		.sort(numericSort)
 	: [];
 const projectImages = projectInfo.images.length > 0 ? projectInfo.images : directoryImages;
-const mediaPath = (file: string) => file.startsWith('/') ? file : `/media/projects/${project}/${encodeURIComponent(file)}`;
+const mediaPath = (file: string) => file.startsWith('/')
+	? file
+	: `/media/projects/${project}/${encodeURIComponent(file)}`;
 const images = projectImages
 	.filter(Boolean)
-	.map((file, index) => ({ kind: 'image' as const, src: mediaPath(file), number: index + 1 }));
+	.map((file, index) => ({
+		kind: 'image' as const,
+		src: isExternalMedia(file) ? file : mediaPath(file),
+		number: index + 1,
+	}));
 const videos = projectVideos
 	.filter(Boolean)
 	.map((file, index) => ({
 		kind: 'video' as const,
-		src: mediaPath(file),
-		cover: projectVideoCovers[index] ? mediaPath(projectVideoCovers[index]) : undefined,
+		src: isExternalMedia(file) ? file : mediaPath(file),
+		cover: projectVideoCovers[index]
+			? (isExternalMedia(projectVideoCovers[index]) ? projectVideoCovers[index] : mediaPath(projectVideoCovers[index]))
+			: undefined,
 		number: index + 1,
 	}));
 const mediaItems = [...videos, ...images];
