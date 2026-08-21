@@ -9,6 +9,8 @@ const projects = defineCollection({
 		title: z.string(),
 		description: z.string(),
 		services: z.array(z.string()).default([]),
+		video: z.array(z.string()).default([]),
+		videoCover: z.array(z.string()).default([]),
 		images: z.array(z.string()),
 	}),
 });

@@ -3,6 +3,7 @@ import { getEntry } from 'astro:content';
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import PortfolioLayout from '../layouts/PortfolioLayout.astro';
+import ImageLightbox from './ImageLightbox.astro';
 
 interface Props {
 	project: string;
@@ -13,18 +14,32 @@ const entry = await getEntry('projects', project);
 if (!entry) throw new Error(`Project content not found: ${project}`);
 
 const projectInfo = entry.data;
+const projectVideos = projectInfo.video ?? [];
+const projectVideoCovers = projectInfo.videoCover ?? [];
 const supportedImage = /\.(?:jpe?g|png|webp)$/i;
 const numericSort = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
 const projectDirectory = path.join(process.cwd(), 'public', 'media', 'projects', project);
+const videoCoverFiles = new Set(projectVideoCovers.filter(Boolean).map((file) => path.basename(file)));
 const directoryImages = projectInfo.images.length === 0
-	? (await readdir(projectDirectory).catch(() => [])).filter((file) => supportedImage.test(file)).sort(numericSort)
+	? (await readdir(projectDirectory).catch(() => []))
+		.filter((file) => supportedImage.test(file) && !videoCoverFiles.has(file))
+		.sort(numericSort)
 	: [];
 const projectImages = projectInfo.images.length > 0 ? projectInfo.images : directoryImages;
 const mediaPath = (file: string) => file.startsWith('/') ? file : `/media/projects/${project}/${encodeURIComponent(file)}`;
 const images = projectImages
 	.filter(Boolean)
-	.map((file, index) => ({ src: mediaPath(file), number: index + 1 }));
-const columns = Array.from({ length: 4 }, (_, column) => images.filter((_, index) => index % 4 === column));
+	.map((file, index) => ({ kind: 'image' as const, src: mediaPath(file), number: index + 1 }));
+const videos = projectVideos
+	.filter(Boolean)
+	.map((file, index) => ({
+		kind: 'video' as const,
+		src: mediaPath(file),
+		cover: projectVideoCovers[index] ? mediaPath(projectVideoCovers[index]) : undefined,
+		number: index + 1,
+	}));
+const mediaItems = [...videos, ...images];
+const columns = Array.from({ length: 4 }, (_, column) => mediaItems.filter((_, index) => index % 4 === column));
 ---
 
 <PortfolioLayout title="Findwhy — Project" description="A project by Findwhy." active="projects">
@@ -43,12 +58,61 @@ const columns = Array.from({ length: 4 }, (_, column) => images.filter((_, index
 		<section class="project-gallery" aria-label="Project images">
 			{columns.map((column) => (
 				<div class="gallery-column">
-					{column.map((image) => <img src={image.src} alt={`Project image ${image.number}`} loading={image.number <= 4 ? 'eager' : 'lazy'} decoding="async" />)}
+					{column.map((item) => item.kind === 'image' ? (
+						<button class="media-button image-button" type="button" data-lightbox-index={item.number - 1} aria-label={`View project image ${item.number}`}>
+							<img src={item.src} alt={`Project image ${item.number}`} loading={item.number <= 4 ? 'eager' : 'lazy'} decoding="async" />
+						</button>
+					) : (
+						<button class="media-button video-button" type="button" data-video-src={item.src} aria-label={`Play project video ${item.number}`}>
+							{item.cover ? <img src={item.cover} alt="" loading="eager" decoding="async" /> : <span class="video-placeholder" aria-hidden="true"></span>}
+							<span class="play-icon" aria-hidden="true"></span>
+						</button>
+					))}
 				</div>
 			))}
 		</section>
+
+		<ImageLightbox items={images} triggerSelector=".project-gallery .image-button" ariaLabel="Project image viewer" altPrefix="Project image" />
+
+		<dialog class="media-dialog video-dialog" aria-label="Project video player">
+			<button class="dialog-close" type="button" aria-label="Close video player">CLOSE</button>
+			<video controls muted loop playsinline></video>
+		</dialog>
 	</article>
 </PortfolioLayout>
+
+<script>
+	const videoDialog = document.querySelector<HTMLDialogElement>('.video-dialog');
+	const dialogVideo = videoDialog?.querySelector<HTMLVideoElement>('video');
+
+	const closeVideo = () => {
+		if (dialogVideo) {
+			dialogVideo.pause();
+			dialogVideo.removeAttribute('src');
+			dialogVideo.load();
+		}
+		videoDialog?.close();
+	};
+
+	document.querySelectorAll<HTMLButtonElement>('.video-button').forEach((button) => {
+		button.addEventListener('click', async () => {
+			if (!videoDialog || !dialogVideo || !button.dataset.videoSrc) return;
+			dialogVideo.src = button.dataset.videoSrc;
+			videoDialog.showModal();
+			await dialogVideo.play().catch(() => undefined);
+		});
+	});
+
+	videoDialog?.querySelector<HTMLButtonElement>('.dialog-close')?.addEventListener('click', closeVideo);
+	videoDialog?.addEventListener('click', (event) => { if (event.target === videoDialog) closeVideo(); });
+	videoDialog?.addEventListener('cancel', () => {
+		if (dialogVideo) {
+			dialogVideo.pause();
+			dialogVideo.removeAttribute('src');
+			dialogVideo.load();
+		}
+	});
+</script>
 
 <style>
 	.project-page { padding-top: clamp(60px, 6vw, 95px); }
@@ -60,12 +124,25 @@ const columns = Array.from({ length: 4 }, (_, column) => images.filter((_, index
 	.services p:first-child { margin-bottom: 12px; }
 	.project-gallery { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 50px; width: 100%; min-height: 45vh; padding: 20px 50px 50px; }
 	.gallery-column { display: flex; flex-direction: column; gap: 50px; min-width: 0; }
-	.gallery-column img { display: block; width: 100%; height: auto; object-fit: contain; }
+	.media-button { display: block; position: relative; width: 100%; border: 0; margin: 0; padding: 0; overflow: hidden; background: transparent; cursor: pointer; }
+	.media-button img { display: block; width: 100%; height: auto; object-fit: contain; }
+	.video-placeholder { display: block; width: 100%; aspect-ratio: 16 / 9; background: #111; }
+	.play-icon { display: grid; place-items: center; position: absolute; top: 50%; left: 50%; width: 52px; height: 52px; border: 1px solid rgba(255, 255, 255, .9); border-radius: 50%; background: rgba(0, 0, 0, .28); transform: translate(-50%, -50%); }
+	.play-icon::after { content: ''; width: 0; height: 0; margin-left: 3px; border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-left: 10px solid #fff; }
+	.media-dialog { position: fixed; inset: 0; width: 100vw; max-width: none; height: 100vh; max-height: none; border: 0; margin: 0; padding: 35px; background: rgba(0, 0, 0, .9); }
+	.media-dialog[open] { display: grid; place-items: center; }
+	.media-dialog::backdrop { background: rgba(0, 0, 0, .72); }
+	.video-dialog { background: #000; }
+	.video-dialog video { display: block; max-width: 100%; max-height: calc(100vh - 70px); width: auto; height: auto; }
+	.dialog-close { position: fixed; top: 24px; right: 28px; z-index: 2; border: 0; padding: 8px; color: #fff; background: transparent; font-size: 11px; letter-spacing: .05em; cursor: pointer; }
 	@media (max-width: 809px) {
 		.project-page { padding-top: 48px; }
 		.project-intro { gap: 28px; min-height: 240px; padding: 0 20px 40px; }
 		.project-gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; padding: 16px 20px 60px; }
 		.gallery-column { gap: 24px; }
+		.media-dialog { padding: 20px; }
+		.video-dialog video { max-height: calc(100vh - 40px); }
+		.dialog-close { top: 12px; right: 12px; }
 	}
 	@media (max-width: 520px) {
 		.project-gallery { grid-template-columns: 1fr; }
