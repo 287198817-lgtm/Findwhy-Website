@@ -6,8 +6,10 @@ const projects = defineCollection({
 	loader: glob({ pattern: '**/*.md', base: './src/content/projects' }),
 	schema: z.object({
 		order: z.number().optional(),
-		title: z.string(),
-		description: z.string(),
+		title_zh: z.string(),
+		title_en: z.string(),
+		description_zh: z.string(),
+		description_en: z.string(),
 		services: z.array(z.string()).default([]),
 		video: z.array(z.string()).default([]),
 		videoCover: z.array(z.string()).default([]),
@@ -20,8 +22,10 @@ const series = defineCollection({
 	schema: z.object({
 		draft: z.boolean().default(false),
 		order: z.number().optional(),
-		title: z.string(),
-		description: z.string().default(''),
+		title_zh: z.string(),
+		title_en: z.string(),
+		description_zh: z.string(),
+		description_en: z.string(),
 		cover: z.string(),
 	}),
 });

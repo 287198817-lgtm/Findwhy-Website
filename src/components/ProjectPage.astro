@@ -14,6 +14,10 @@ const entry = await getEntry('projects', project);
 if (!entry) throw new Error(`Project content not found: ${project}`);
 
 const projectInfo = entry.data;
+const titleEn = projectInfo.title_en;
+const titleZh = projectInfo.title_zh;
+const descriptionEn = projectInfo.description_en;
+const descriptionZh = projectInfo.description_zh;
 const projectVideos = projectInfo.video ?? [];
 const projectVideoCovers = projectInfo.videoCover ?? [];
 const supportedImage = /\.(?:jpe?g|png|webp)$/i;
@@ -59,8 +63,8 @@ const columns = Array.from({ length: 4 }, (_, column) => mediaItems.filter((_, i
 <PortfolioLayout title="Findwhy — Project" description="A project by Findwhy." active="projects">
 	<article class="project-page">
 		<header class="project-intro">
-			<h1>{projectInfo.title}</h1>
-			<p class="description">{projectInfo.description}</p>
+			<h1 class="translatable" data-en={titleEn} data-zh={titleZh}>{titleEn}</h1>
+			<p class="description translatable" data-en={descriptionEn} data-zh={descriptionZh}>{descriptionEn}</p>
 			{projectInfo.services.length > 0 && (
 				<div class="services">
 					<p>Services:</p>

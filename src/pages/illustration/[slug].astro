@@ -16,14 +16,18 @@ const entry = await getEntry('series', slug);
 if (!entry) throw new Error(`Series content not found: ${slug}`);
 if (entry.data.draft) throw new Error(`Series is not published: ${slug}`);
 
+const titleEn = entry.data.title_en;
+const titleZh = entry.data.title_zh;
+const descriptionEn = entry.data.description_en;
+const descriptionZh = entry.data.description_zh;
 const images = getSeriesImages(slug, entry.data.cover);
 ---
 
-<PortfolioLayout title={`Findwhy — ${entry.data.title}`} description={entry.data.description} active="illustration">
+<PortfolioLayout title={`Findwhy — ${titleEn}`} description={descriptionEn} active="illustration">
 	<article class="series-page">
 		<header class="series-intro">
-			<h1>{entry.data.title}</h1>
-			{entry.data.description && <p>{entry.data.description}</p>}
+			<h1 class="translatable" data-en={titleEn} data-zh={titleZh}>{titleEn}</h1>
+			{(descriptionEn || descriptionZh) && <p class="translatable" data-en={descriptionEn} data-zh={descriptionZh}>{descriptionEn}</p>}
 		</header>
 		<Gallery items={images} type="image" />
 	</article>

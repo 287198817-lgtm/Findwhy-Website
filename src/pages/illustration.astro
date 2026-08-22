@@ -20,7 +20,8 @@ const series = (await getCollection('series'))
 		kind: 'series' as const,
 		src: resolveSeriesCover(entry.id, entry.data.cover),
 		number: index + 1,
-		title: entry.data.title,
+		titleZh: entry.data.title_zh,
+		titleEn: entry.data.title_en,
 		href: `/illustration/${entry.id}`,
 	}));
 
