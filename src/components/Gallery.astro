@@ -2,23 +2,29 @@
 import ImageLightbox from './ImageLightbox.astro';
 
 interface Item { src: string; number: number; kind?: 'image' | 'series'; titleZh?: string; titleEn?: string; href?: string }
-interface Props { items: Item[]; type: 'image' | 'video' }
-const { items, type } = Astro.props;
+interface Props { items: Item[]; type: 'image' | 'video'; columns?: number; seriesTitleMode?: 'localized' | 'bilingual' }
+const { items, type, columns: columnCount = 4, seriesTitleMode = 'localized' } = Astro.props;
 let lightboxIndex = 0;
 const displayItems = items.map((item) => item.kind === 'series'
 	? item
 	: { ...item, lightboxIndex: lightboxIndex++ });
 const lightboxItems = items.filter((item) => item.kind !== 'series');
-const columns = Array.from({ length: 4 }, (_, column) => displayItems.filter((_, index) => index % 4 === column));
+const columns = Array.from({ length: columnCount }, (_, column) => displayItems.filter((_, index) => index % columnCount === column));
 ---
 
-<section class="gallery" data-gallery={type} aria-label={type === 'image' ? 'Illustration works' : 'Animation works'}>
+<section class:list={['gallery', { 'two-column': columnCount === 2 }]} data-gallery={type} aria-label={type === 'image' ? 'Illustration works' : 'Animation works'}>
 	{columns.map((column) => (
 		<div class="gallery-column">
 			{column.map((item) => type === 'image' && item.kind === 'series' ? (
 				<a class="media-item series-item" href={item.href} aria-label={`Open series ${item.titleEn}`}>
 					<img src={item.src} alt={item.titleEn ?? 'Illustration series'} loading={item.number <= 4 ? 'eager' : 'lazy'} decoding="async" />
-					<span class="series-label translatable" data-en={item.titleEn} data-zh={item.titleZh}>{item.titleEn}</span>
+					{seriesTitleMode === 'bilingual' ? (
+						<span class="series-label">
+							<span class="series-titles"><span>{item.titleZh}</span><span>{item.titleEn}</span></span>
+						</span>
+					) : (
+						<span class="series-label translatable" data-en={item.titleEn} data-zh={item.titleZh}>{item.titleEn}</span>
+					)}
 				</a>
 			) : type === 'image' ? (
 				<button class="media-item image-item" type="button" data-lightbox-index={item.lightboxIndex} aria-label={`Open illustration ${item.number}`}>
@@ -35,7 +41,7 @@ const columns = Array.from({ length: 4 }, (_, column) => displayItems.filter((_,
 	))}
 </section>
 
-{type === 'image' && <ImageLightbox items={lightboxItems} triggerSelector=".gallery .image-item" ariaLabel="Illustration viewer" />}
+{type === 'image' && lightboxItems.length > 0 && <ImageLightbox items={lightboxItems} triggerSelector=".gallery .image-item" ariaLabel="Illustration viewer" />}
 
 <script define:vars={{ type }}>
 	if (type === 'video') {
@@ -53,6 +59,7 @@ const columns = Array.from({ length: 4 }, (_, column) => displayItems.filter((_,
 
 <style>
 	.gallery { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 50px; width: 100%; padding: 50px; }
+	.gallery.two-column { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; max-width: none; }
 	.gallery-column { display: flex; flex-direction: column; gap: 50px; min-width: 0; }
 	.media-item { display: block; width: 100%; margin: 0; padding: 0; border: 0; background: transparent; overflow: hidden; }
 	.image-item { cursor: zoom-in; }
@@ -62,6 +69,7 @@ const columns = Array.from({ length: 4 }, (_, column) => displayItems.filter((_,
 	.series-item { position: relative; cursor: pointer; }
 	.series-item img { transition: opacity .3s ease, filter .3s ease; }
 	.series-label { display: grid; place-items: center; position: absolute; inset: 0; padding: 20px; color: #000; background: transparent; font-size: 26px; line-height: 1.3; letter-spacing: .04em; text-align: center; opacity: 0; transition: opacity .3s ease; }
+	.series-titles { display: flex; flex-direction: column; gap: 6px; }
 	.series-item:hover img, .series-item:focus-visible img { opacity: .3; filter: brightness(1.08); }
 	.series-item:hover .series-label, .series-item:focus-visible .series-label { opacity: 1; }
 	.series-item:focus-visible { outline: 1px solid #000; outline-offset: 5px; }

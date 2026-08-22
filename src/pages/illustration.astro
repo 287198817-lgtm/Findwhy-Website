@@ -1,33 +1,16 @@
 ---
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { getCollection } from 'astro:content';
 import Gallery from '../components/Gallery.astro';
 import PortfolioLayout from '../layouts/PortfolioLayout.astro';
-import { resolveSeriesCover } from '../lib/seriesMedia';
 
 const numericSort = new Intl.Collator('en', { numeric: true }).compare;
 const illustrations = readdirSync(join(process.cwd(), 'public/media/illustration'))
 	.filter((file) => /\.(avif|gif|jpe?g|png|webp)$/i.test(file))
 	.sort(numericSort)
 	.map((file, index) => ({ kind: 'image' as const, src: `/media/illustration/${encodeURIComponent(file)}`, number: index + 1 }));
-
-const series = (await getCollection('series'))
-	.filter((entry) => !entry.data.draft)
-	.sort((a, b) => (a.data.order ?? Number.POSITIVE_INFINITY) - (b.data.order ?? Number.POSITIVE_INFINITY)
-		|| a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }))
-	.map((entry, index) => ({
-		kind: 'series' as const,
-		src: resolveSeriesCover(entry.id, entry.data.cover),
-		number: index + 1,
-		titleZh: entry.data.title_zh,
-		titleEn: entry.data.title_en,
-		href: `/illustration/${entry.id}`,
-	}));
-
-const galleryItems = [...series, ...illustrations];
 ---
 
 <PortfolioLayout title="Findwhy" description="Findwhy illustration portfolio." active="illustration">
-	<Gallery items={galleryItems} type="image" />
+	<Gallery items={illustrations} type="image" />
 </PortfolioLayout>

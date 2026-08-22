@@ -1,10 +1,11 @@
 ---
 import { getCollection } from 'astro:content';
 
-interface Props { active?: 'illustration' | 'animation' | 'projects' | 'about' }
+interface Props { active?: 'series' | 'illustration' | 'animation' | 'projects' | 'about' }
 const { active } = Astro.props;
 
 const links = [
+	{ label: 'SERIES', zh: '系列', href: '/series', id: 'series' },
 	{ label: 'ILLUSTRATION', zh: '插画', href: '/illustration', id: 'illustration' },
 	{ label: 'ANIMATION', zh: '动画', href: '/animation', id: 'animation' },
 	{ label: 'ABOUT', zh: '关于', href: '/about', id: 'about' },
@@ -30,14 +31,14 @@ const projects = (await getCollection('projects'))
 		<img src="/findwhy-logo.png" alt="FINDWHY" width="170" height="31" />
 	</a>
 	<nav aria-label="Main navigation">
-		{links.slice(0, 2).map((link) => <a class="nav-link translatable" href={link.href} aria-current={active === link.id ? 'page' : undefined} data-en={link.label} data-zh={link.zh}>{link.label}</a>)}
+		{links.slice(0, 3).map((link) => <a class="nav-link translatable" href={link.href} aria-current={active === link.id ? 'page' : undefined} data-en={link.label} data-zh={link.zh}>{link.label}</a>)}
 		<div class="project-menu">
 			<button class="nav-link project-trigger translatable" type="button" aria-current={active === 'projects' ? 'page' : undefined} aria-haspopup="true" aria-expanded="false" data-en="PROJECTS +" data-zh="项目 +">PROJECTS +</button>
 			<div class="dropdown">
 				{projects.map((project) => <a class="translatable" href={project.href} data-en={project.labelEn} data-zh={project.labelZh}>{project.labelEn}</a>)}
 			</div>
 		</div>
-		{links.slice(2).map((link) => <a class="nav-link translatable" href={link.href} aria-current={active === link.id ? 'page' : undefined} data-en={link.label} data-zh={link.zh}>{link.label}</a>)}
+		{links.slice(3).map((link) => <a class="nav-link translatable" href={link.href} aria-current={active === link.id ? 'page' : undefined} data-en={link.label} data-zh={link.zh}>{link.label}</a>)}
 		<div class="language-switch" aria-label="Language">
 			<button class="language-button" type="button" data-language="en" aria-pressed="true">EN</button>
 			<span aria-hidden="true">/</span>

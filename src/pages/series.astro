@@ -1,0 +1,23 @@
+---
+import { getCollection } from 'astro:content';
+import Gallery from '../components/Gallery.astro';
+import PortfolioLayout from '../layouts/PortfolioLayout.astro';
+import { resolveSeriesCover } from '../lib/seriesMedia';
+
+const series = (await getCollection('series'))
+	.filter((entry) => !entry.data.draft)
+	.sort((a, b) => (a.data.order ?? Number.POSITIVE_INFINITY) - (b.data.order ?? Number.POSITIVE_INFINITY)
+		|| a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }))
+	.map((entry, index) => ({
+		kind: 'series' as const,
+		src: resolveSeriesCover(entry.id, entry.data.cover),
+		number: index + 1,
+		titleZh: entry.data.title_zh,
+		titleEn: entry.data.title_en,
+		href: `/illustration/${entry.id}`,
+	}));
+---
+
+<PortfolioLayout title="Findwhy — Series" description="Findwhy illustration series." active="series">
+	<Gallery items={series} type="image" columns={2} seriesTitleMode="bilingual" />
+</PortfolioLayout>
