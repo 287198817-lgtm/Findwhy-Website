@@ -1,17 +1,27 @@
 ---
 import ImageLightbox from './ImageLightbox.astro';
 
-interface Item { src: string; number: number }
+interface Item { src: string; number: number; kind?: 'image' | 'series'; title?: string; href?: string }
 interface Props { items: Item[]; type: 'image' | 'video' }
 const { items, type } = Astro.props;
-const columns = Array.from({ length: 4 }, (_, column) => items.filter((_, index) => index % 4 === column));
+let lightboxIndex = 0;
+const displayItems = items.map((item) => item.kind === 'series'
+	? item
+	: { ...item, lightboxIndex: lightboxIndex++ });
+const lightboxItems = items.filter((item) => item.kind !== 'series');
+const columns = Array.from({ length: 4 }, (_, column) => displayItems.filter((_, index) => index % 4 === column));
 ---
 
 <section class="gallery" data-gallery={type} aria-label={type === 'image' ? 'Illustration works' : 'Animation works'}>
 	{columns.map((column) => (
 		<div class="gallery-column">
-			{column.map((item) => type === 'image' ? (
-				<button class="media-item image-item" type="button" data-lightbox-index={item.number - 1} aria-label={`Open illustration ${item.number}`}>
+			{column.map((item) => type === 'image' && item.kind === 'series' ? (
+				<a class="media-item series-item" href={item.href} aria-label={`Open series ${item.title}`}>
+					<img src={item.src} alt={item.title ?? 'Illustration series'} loading={item.number <= 4 ? 'eager' : 'lazy'} decoding="async" />
+					<span class="series-label">{item.title}</span>
+				</a>
+			) : type === 'image' ? (
+				<button class="media-item image-item" type="button" data-lightbox-index={item.lightboxIndex} aria-label={`Open illustration ${item.number}`}>
 					<img src={item.src} alt={`Findwhy illustration ${item.number}`} loading={item.number <= 4 ? 'eager' : 'lazy'} decoding="async" />
 				</button>
 			) : (
@@ -25,7 +35,7 @@ const columns = Array.from({ length: 4 }, (_, column) => items.filter((_, index)
 	))}
 </section>
 
-{type === 'image' && <ImageLightbox items={items} triggerSelector=".gallery .image-item" ariaLabel="Illustration viewer" />}
+{type === 'image' && <ImageLightbox items={lightboxItems} triggerSelector=".gallery .image-item" ariaLabel="Illustration viewer" />}
 
 <script define:vars={{ type }}>
 	if (type === 'video') {
@@ -49,6 +59,10 @@ const columns = Array.from({ length: 4 }, (_, column) => items.filter((_, index)
 	.media-item img, .media-item video { display: block; width: 100%; height: auto; object-fit: contain; transition: transform .45s ease, opacity .3s ease; }
 	.image-item:hover img, .image-item:focus-visible img { transform: scale(1.015); opacity: .96; }
 	.image-item:focus-visible { outline: 1px solid #000; outline-offset: 5px; }
+	.series-item { position: relative; cursor: pointer; }
+	.series-label { display: grid; place-items: center; position: absolute; inset: 0; padding: 20px; color: #fff; background: rgba(0, 0, 0, .2); font-size: 13px; line-height: 1.3; letter-spacing: .04em; text-align: center; opacity: 0; transition: opacity .3s ease; }
+	.series-item:hover .series-label, .series-item:focus-visible .series-label { opacity: 1; }
+	.series-item:focus-visible { outline: 1px solid #000; outline-offset: 5px; }
 	.video-item { cursor: pointer; }
 	@media (max-width: 809px) {
 		.gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; padding: 42px 20px 60px; }

@@ -1,0 +1,42 @@
+---
+import { getCollection, getEntry } from 'astro:content';
+import Gallery from '../../components/Gallery.astro';
+import PortfolioLayout from '../../layouts/PortfolioLayout.astro';
+import { getSeriesImages } from '../../lib/seriesMedia';
+
+export async function getStaticPaths() {
+	const series = await getCollection('series');
+	return series.filter((entry) => !entry.data.draft).map((entry) => ({ params: { slug: entry.id } }));
+}
+
+const { slug } = Astro.params;
+if (!slug) throw new Error('Series slug is required.');
+
+const entry = await getEntry('series', slug);
+if (!entry) throw new Error(`Series content not found: ${slug}`);
+if (entry.data.draft) throw new Error(`Series is not published: ${slug}`);
+
+const images = getSeriesImages(slug, entry.data.cover);
+---
+
+<PortfolioLayout title={`Findwhy — ${entry.data.title}`} description={entry.data.description} active="illustration">
+	<article class="series-page">
+		<header class="series-intro">
+			<h1>{entry.data.title}</h1>
+			{entry.data.description && <p>{entry.data.description}</p>}
+		</header>
+		<Gallery items={images} type="image" />
+	</article>
+</PortfolioLayout>
+
+<style>
+	.series-page { padding-top: clamp(60px, 6vw, 95px); }
+	.series-intro { display: flex; flex-direction: column; gap: 32px; min-height: 260px; padding: 0 50px 48px; }
+	h1, p { margin: 0; font-size: 13px; font-weight: 400; line-height: 1.8; }
+	h1 { line-height: 1; letter-spacing: .04em; }
+	p { max-width: 430px; }
+	@media (max-width: 809px) {
+		.series-page { padding-top: 48px; }
+		.series-intro { gap: 28px; min-height: 240px; padding: 0 20px 40px; }
+	}
+</style>
