@@ -1,7 +1,7 @@
 ---
 import ImageLightbox from './ImageLightbox.astro';
 
-interface Item { src: string; number: number; kind?: 'image' | 'series'; titleZh?: string; titleEn?: string; href?: string }
+interface Item { src: string; poster?: string; number: number; kind?: 'image' | 'series'; titleZh?: string; titleEn?: string; href?: string }
 interface Props { items: Item[]; type: 'image' | 'video'; columns?: number; seriesTitleMode?: 'localized' | 'bilingual' }
 const { items, type, columns: columnCount = 4, seriesTitleMode = 'localized' } = Astro.props;
 let lightboxIndex = 0;
@@ -13,9 +13,15 @@ const columns = Array.from({ length: columnCount }, (_, column) => displayItems.
 ---
 
 <section class:list={['gallery', { 'two-column': columnCount === 2 }]} data-gallery={type} aria-label={type === 'image' ? 'Illustration works' : 'Animation works'}>
-	{columns.map((column) => (
+	{type === 'video' ? displayItems.map((item) => (
+		<div class="media-item video-item">
+			<video poster={item.poster} muted loop playsinline preload={item.number <= 4 ? 'auto' : 'metadata'} aria-label={`Findwhy animation ${item.number}`}>
+				<source src={item.src} type="video/mp4" />
+			</video>
+		</div>
+	)) : columns.map((column) => (
 		<div class="gallery-column">
-			{column.map((item) => type === 'image' && item.kind === 'series' ? (
+			{column.map((item) => item.kind === 'series' ? (
 				<a class="media-item series-item" href={item.href} aria-label={`Open series ${item.titleEn}`}>
 					<img src={item.src} alt={item.titleEn ?? 'Illustration series'} loading={item.number <= 4 ? 'eager' : 'lazy'} decoding="async" />
 					{seriesTitleMode === 'bilingual' ? (
@@ -26,16 +32,10 @@ const columns = Array.from({ length: columnCount }, (_, column) => displayItems.
 						<span class="series-label translatable" data-en={item.titleEn} data-zh={item.titleZh}>{item.titleEn}</span>
 					)}
 				</a>
-			) : type === 'image' ? (
+			) : (
 				<button class="media-item image-item" type="button" data-lightbox-index={item.lightboxIndex} aria-label={`Open illustration ${item.number}`}>
 					<img src={item.src} alt={`Findwhy illustration ${item.number}`} loading={item.number <= 4 ? 'eager' : 'lazy'} decoding="async" />
 				</button>
-			) : (
-				<div class="media-item video-item">
-					<video muted loop playsinline preload={item.number <= 4 ? 'auto' : 'metadata'} aria-label={`Findwhy animation ${item.number}`}>
-						<source src={item.src} type="video/mp4" />
-					</video>
-				</div>
 			))}
 		</div>
 	))}
@@ -45,14 +45,9 @@ const columns = Array.from({ length: columnCount }, (_, column) => displayItems.
 
 <script define:vars={{ type }}>
 	if (type === 'video') {
-		const canHover = matchMedia('(hover: hover)').matches;
 		document.querySelectorAll('video').forEach((video) => {
-			if (canHover) {
-				video.addEventListener('pointerenter', () => video.play().catch(() => {}));
-				video.addEventListener('pointerleave', () => { video.pause(); video.currentTime = 0; });
-			} else {
-				new IntersectionObserver(([entry]) => entry.isIntersecting ? video.play().catch(() => {}) : video.pause(), { threshold: .5 }).observe(video);
-			}
+			video.addEventListener('mouseenter', () => video.play().catch(() => {}));
+			video.addEventListener('mouseleave', () => video.pause());
 		});
 	}
 </script>

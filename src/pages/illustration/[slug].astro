@@ -3,6 +3,7 @@ import { getCollection, getEntry } from 'astro:content';
 import Gallery from '../../components/Gallery.astro';
 import PortfolioLayout from '../../layouts/PortfolioLayout.astro';
 import { getSeriesImages } from '../../lib/seriesMedia';
+import { resolveMediaUrl } from '../../lib/mediaUrl';
 
 export async function getStaticPaths() {
 	const series = await getCollection('series');
@@ -20,7 +21,19 @@ const titleEn = entry.data.title_en;
 const titleZh = entry.data.title_zh;
 const descriptionEn = entry.data.description_en;
 const descriptionZh = entry.data.description_zh;
-const images = getSeriesImages(slug, entry.data.cover);
+const coverSrc = entry.data.cover_image;
+const galleryImages = entry.data.gallery_images.filter(Boolean);
+const seriesImages = galleryImages.length > 0
+	? galleryImages.map((image, index) => ({
+		kind: 'image' as const,
+		src: resolveMediaUrl(image, { basePath: `/media/series/${slug}` }),
+		number: index + 1,
+	}))
+	: getSeriesImages(slug, entry.data.cover_image);
+const images = [
+	{ kind: 'image' as const, src: coverSrc, number: 1 },
+	...seriesImages.map((image, index) => ({ ...image, number: index + 2 })),
+];
 ---
 
 <PortfolioLayout title={`Findwhy — ${titleEn}`} description={descriptionEn} active="illustration">

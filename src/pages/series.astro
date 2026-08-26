@@ -1,23 +1,29 @@
 ---
-import { getCollection } from 'astro:content';
 import Gallery from '../components/Gallery.astro';
 import PortfolioLayout from '../layouts/PortfolioLayout.astro';
-import { resolveSeriesCover } from '../lib/seriesMedia';
+import { getSeries, type SeriesItem } from '../lib/payload/series';
 
-const series = (await getCollection('series'))
-	.filter((entry) => !entry.data.draft)
-	.sort((a, b) => (a.data.order ?? Number.POSITIVE_INFINITY) - (b.data.order ?? Number.POSITIVE_INFINITY)
-		|| a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }))
-	.map((entry, index) => ({
+let series: SeriesItem[] = [];
+let loadError = false;
+try { series = await getSeries(); }
+catch (error) { loadError = true; console.error('Unable to load Series from Payload.', error); }
+const cards = series.filter((item) => item.cover).map((item, index) => ({
 		kind: 'series' as const,
-		src: resolveSeriesCover(entry.id, entry.data.cover),
+		src: item.cover!,
 		number: index + 1,
-		titleZh: entry.data.title_zh,
-		titleEn: entry.data.title_en,
-		href: `/illustration/${entry.id}`,
-	}));
+		titleZh: item.titleZh,
+		titleEn: item.titleEn,
+		href: `/series/${item.slug}`,
+}));
 ---
 
 <PortfolioLayout title="Findwhy — Series" description="Findwhy illustration series." active="series">
-	<Gallery items={series} type="image" columns={2} seriesTitleMode="bilingual" />
+	{loadError ? <p class="series-status">SERIES COULD NOT BE LOADED.</p> : cards.length > 0 ? (
+		<Gallery items={cards} type="image" columns={2} seriesTitleMode="bilingual" />
+	) : <p class="series-status">NO SERIES YET.</p>}
 </PortfolioLayout>
+
+<style>
+	.series-status { min-height: calc(100vh - 132px); margin: 0; padding: 50px; font-size: 11px; letter-spacing: .04em; }
+	@media (max-width: 809px) { .series-status { padding: 42px 20px 60px; } }
+</style>

@@ -1,0 +1,63 @@
+import { payloadFetch, resolvePayloadMediaUrl } from './client';
+
+interface PayloadMedia {
+	url?: string | null;
+}
+
+interface PayloadAnimation {
+	id: number | string;
+	slug: string;
+	video: PayloadMedia | number | string | null;
+	poster?: PayloadMedia | number | string | null;
+	order?: number | null;
+	draft?: boolean | null;
+}
+
+interface PayloadCollectionResponse<T> {
+	docs: T[];
+	hasNextPage: boolean;
+	nextPage: number | null;
+}
+
+export interface AnimationItem {
+	slug: string;
+	video: string;
+	poster?: string;
+	order: number;
+}
+
+const getMediaUrl = (media: PayloadMedia | number | string | null | undefined) => {
+	if (!media || typeof media !== 'object' || !media.url) return null;
+	return resolvePayloadMediaUrl(media.url);
+};
+
+export const getAnimations = async (): Promise<AnimationItem[]> => {
+	const documents: PayloadAnimation[] = [];
+	let page = 1;
+
+	do {
+		const params = new URLSearchParams({
+			depth: '1',
+			limit: '100',
+			page: String(page),
+			sort: 'order',
+		});
+		const response = await payloadFetch<PayloadCollectionResponse<PayloadAnimation>>(
+			`/api/animations?${params}`,
+		);
+
+		documents.push(...response.docs);
+		page = response.hasNextPage && response.nextPage ? response.nextPage : 0;
+	} while (page > 0);
+
+	return documents
+		.filter((document) => document.draft !== true)
+		.map((document) => ({
+			slug: document.slug,
+			video: getMediaUrl(document.video),
+			poster: getMediaUrl(document.poster) ?? undefined,
+			order: document.order ?? Number.POSITIVE_INFINITY,
+		}))
+		.filter((document): document is AnimationItem => Boolean(document.video))
+		.sort((a, b) => a.order - b.order);
+};

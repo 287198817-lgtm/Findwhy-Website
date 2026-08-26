@@ -1,5 +1,51 @@
 ---
 import PortfolioLayout from '../layouts/PortfolioLayout.astro';
+import { getProjects, type ProjectItem } from '../lib/payload/projects';
+
+let projects: ProjectItem[] = [];
+let loadError = false;
+try {
+	projects = await getProjects();
+} catch (error) {
+	loadError = true;
+	console.error('Unable to load Projects from Payload.', error);
+}
 ---
 
-<PortfolioLayout title="Findwhy — Projects" description="Findwhy projects." active="projects" />
+<PortfolioLayout title="Findwhy — Projects" description="Findwhy projects." active="projects">
+	<main class="projects-page" aria-busy="false">
+		{loadError ? (
+			<p class="projects-status">PROJECTS COULD NOT BE LOADED.</p>
+		) : projects.length === 0 ? (
+			<p class="projects-status">NO PROJECTS YET.</p>
+		) : (
+			<section class="projects-grid" aria-label="Projects">
+				{projects.map((project) => (
+					<a class="project-card" href={`/projects/${project.slug}`}>
+						{project.coverImage ? <img src={project.coverImage} alt={project.titleEn} loading="lazy" decoding="async" /> : <span class="project-cover-placeholder"></span>}
+						<span class="project-meta">
+							<span class="translatable" data-en={project.titleEn} data-zh={project.titleZh}>{project.titleEn}</span>
+							<span>{[project.type, project.year].filter(Boolean).join(' — ')}</span>
+						</span>
+					</a>
+				))}
+			</section>
+		)}
+	</main>
+</PortfolioLayout>
+
+<style>
+	.projects-page { min-height: calc(100vh - 132px); padding: 50px; }
+	.projects-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 50px; }
+	.project-card { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+	.project-card img, .project-cover-placeholder { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: contain; background: #f7f7f7; transition: opacity .3s ease; }
+	.project-card:hover img, .project-card:focus-visible img { opacity: .72; }
+	.project-meta { display: flex; justify-content: space-between; gap: 16px; font-size: 11px; line-height: 1.4; letter-spacing: .03em; }
+	.project-meta > :last-child { color: #777; text-align: right; }
+	.projects-status { margin: 0; padding-top: 30px; font-size: 11px; letter-spacing: .04em; }
+	@media (max-width: 809px) {
+		.projects-page { padding: 42px 20px 60px; }
+		.projects-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 24px; }
+	}
+	@media (max-width: 520px) { .projects-grid { grid-template-columns: 1fr; } }
+</style>

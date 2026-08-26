@@ -1,5 +1,5 @@
 ---
-import { getCollection } from 'astro:content';
+import { getProjects } from '../lib/payload/projects';
 
 interface Props { active?: 'series' | 'illustration' | 'animation' | 'projects' | 'about' }
 const { active } = Astro.props;
@@ -11,19 +11,16 @@ const links = [
 	{ label: 'ABOUT', zh: '关于', href: '/about', id: 'about' },
 ] as const;
 
-const projects = (await getCollection('projects'))
-	.sort((a, b) => {
-		const aOrder = a.data.order ?? Number.POSITIVE_INFINITY;
-		const bOrder = b.data.order ?? Number.POSITIVE_INFINITY;
-
-		return aOrder - bOrder
-			|| a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' });
-	})
-	.map((entry) => ({
-		labelEn: entry.data.title_en,
-		labelZh: entry.data.title_zh,
-		href: `/projects/${entry.id}`,
+let projects: Array<{ labelEn: string; labelZh: string; href: string }> = [];
+try {
+	projects = (await getProjects()).map((project) => ({
+		labelEn: project.titleEn,
+		labelZh: project.titleZh,
+		href: `/projects/${project.slug}`,
 	}));
+} catch (error) {
+	console.error('Unable to load Projects navigation from Payload.', error);
+}
 ---
 
 <header class="site-header">

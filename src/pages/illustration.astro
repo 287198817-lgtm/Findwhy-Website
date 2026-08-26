@@ -1,14 +1,14 @@
 ---
-import { readdirSync } from 'node:fs';
-import { join } from 'node:path';
 import Gallery from '../components/Gallery.astro';
 import PortfolioLayout from '../layouts/PortfolioLayout.astro';
+import { getIllustrations } from '../lib/payload/illustrations';
 
-const numericSort = new Intl.Collator('en', { numeric: true }).compare;
-const illustrations = readdirSync(join(process.cwd(), 'public/media/illustration'))
-	.filter((file) => /\.(avif|gif|jpe?g|png|webp)$/i.test(file))
-	.sort(numericSort)
-	.map((file, index) => ({ kind: 'image' as const, src: `/media/illustration/${encodeURIComponent(file)}`, number: index + 1 }));
+const payloadIllustrations = await getIllustrations();
+const illustrations = payloadIllustrations.map((entry, index) => ({
+		kind: 'image' as const,
+		src: entry.image,
+		number: index + 1,
+}));
 ---
 
 <PortfolioLayout title="Findwhy" description="Findwhy illustration portfolio." active="illustration">

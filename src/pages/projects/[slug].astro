@@ -1,17 +1,32 @@
 ---
-import { getCollection } from 'astro:content';
 import ProjectPage from '../../components/ProjectPage.astro';
+import { getProjectBySlug } from '../../lib/payload/projects';
 
-export async function getStaticPaths() {
-	const projects = await getCollection('projects');
-
-	return projects.map((project) => ({
-		params: { slug: project.id },
-	}));
-}
+export const prerender = false;
 
 const { slug } = Astro.params;
 if (!slug) throw new Error('Project slug is required.');
+
+let project = null;
+let loadError = false;
+try {
+	project = await getProjectBySlug(slug);
+} catch (error) {
+	loadError = true;
+	console.error(`Unable to load Project ${slug} from Payload.`, error);
+}
+
+if (!project) Astro.response.status = loadError ? 502 : 404;
 ---
 
-<ProjectPage project={slug} />
+{project ? <ProjectPage project={project} /> : (
+	<main class="project-state">
+		<p>{loadError ? 'PROJECT COULD NOT BE LOADED.' : 'PROJECT NOT FOUND.'}</p>
+	</main>
+)}
+
+<style>
+	.project-state { min-height: 100vh; padding: 50px; background: #fff; font-size: 11px; letter-spacing: .04em; }
+	.project-state p { margin: 0; }
+	@media (max-width: 809px) { .project-state { padding: 28px 20px; } }
+</style>

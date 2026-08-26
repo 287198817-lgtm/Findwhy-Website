@@ -1,63 +1,41 @@
 ---
-import { getEntry } from 'astro:content';
-import { readdir } from 'node:fs/promises';
-import path from 'node:path';
 import PortfolioLayout from '../layouts/PortfolioLayout.astro';
 import ImageLightbox from './ImageLightbox.astro';
+import type { ProjectItem } from '../lib/payload/projects';
 
 interface Props {
-	project: string;
+	project: ProjectItem;
 }
 
 const { project } = Astro.props;
-const entry = await getEntry('projects', project);
-if (!entry) throw new Error(`Project content not found: ${project}`);
-
-const projectInfo = entry.data;
-const titleEn = projectInfo.title_en;
-const titleZh = projectInfo.title_zh;
-const descriptionEn = projectInfo.description_en;
-const descriptionZh = projectInfo.description_zh;
-const projectVideos = projectInfo.video ?? [];
-const projectVideoCovers = projectInfo.videoCover ?? [];
-const supportedImage = /\.(?:jpe?g|png|webp)$/i;
-const numericSort = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
-const projectDirectory = path.join(process.cwd(), 'public', 'media', 'projects', project);
-const isExternalMedia = (file: string) => /^https?:\/\//i.test(file);
-const mediaFileName = (file: string) => isExternalMedia(file)
-	? path.basename(new URL(file).pathname)
-	: path.basename(file);
-const videoCoverFiles = new Set(projectVideoCovers
-	.filter(Boolean)
-	.map(mediaFileName));
-const directoryImages = projectInfo.images.length === 0
-	? (await readdir(projectDirectory).catch(() => []))
-		.filter((file) => supportedImage.test(file) && !videoCoverFiles.has(file))
-		.sort(numericSort)
-	: [];
-const projectImages = projectInfo.images.length > 0 ? projectInfo.images : directoryImages;
-const mediaPath = (file: string) => file.startsWith('/')
-	? file
-	: `/media/projects/${project}/${encodeURIComponent(file)}`;
-const images = projectImages
-	.filter(Boolean)
-	.map((file, index) => ({
-		kind: 'image' as const,
-		src: isExternalMedia(file) ? file : mediaPath(file),
-		number: index + 1,
-	}));
-const videos = projectVideos
-	.filter(Boolean)
-	.map((file, index) => ({
-		kind: 'video' as const,
-		src: isExternalMedia(file) ? file : mediaPath(file),
-		cover: projectVideoCovers[index]
-			? (isExternalMedia(projectVideoCovers[index]) ? projectVideoCovers[index] : mediaPath(projectVideoCovers[index]))
-			: undefined,
-		number: index + 1,
-	}));
-const mediaItems = [...videos, ...images];
-const columns = Array.from({ length: 4 }, (_, column) => mediaItems.filter((_, index) => index % 4 === column));
+const titleEn = project.titleEn;
+const titleZh = project.titleZh;
+const descriptionEn = project.descriptionEn;
+const descriptionZh = project.descriptionZh;
+const projectMeta = [project.type?.trim(), project.year]
+	.filter((value) => value !== undefined && value !== null && value !== '')
+	.join(' · ');
+const videoItems = project.videos.map((video, index) => ({
+	type: 'video' as const,
+	url: video.src,
+	cover: video.cover,
+	order: index,
+	number: index + 1,
+}));
+const imageItems = project.images.map((url, index) => ({
+	type: 'image' as const,
+	url,
+	order: videoItems.length + index,
+	number: index + 1,
+	lightboxIndex: index,
+}));
+const mediaList = [...videoItems, ...imageItems].sort((a, b) => a.order - b.order);
+const lightboxImages = imageItems.map((image) => ({
+	kind: 'image' as const,
+	src: image.url,
+	number: image.number,
+}));
+const columns = Array.from({ length: 4 }, (_, column) => mediaList.filter((_, index) => index % 4 === column));
 ---
 
 <PortfolioLayout title="Findwhy — Project" description="A project by Findwhy." active="projects">
@@ -65,10 +43,11 @@ const columns = Array.from({ length: 4 }, (_, column) => mediaItems.filter((_, i
 		<header class="project-intro">
 			<h1 class="translatable" data-en={titleEn} data-zh={titleZh}>{titleEn}</h1>
 			<p class="description translatable" data-en={descriptionEn} data-zh={descriptionZh}>{descriptionEn}</p>
-			{projectInfo.services.length > 0 && (
+			{projectMeta && <p class="project-meta">{projectMeta}</p>}
+			{project.services.length > 0 && (
 				<div class="services">
 					<p>Services:</p>
-					{projectInfo.services.map((service) => <p>{service}</p>)}
+					{project.services.map((service) => <p>{service}</p>)}
 				</div>
 			)}
 		</header>
@@ -76,12 +55,12 @@ const columns = Array.from({ length: 4 }, (_, column) => mediaItems.filter((_, i
 		<section class="project-gallery" aria-label="Project images">
 			{columns.map((column) => (
 				<div class="gallery-column">
-					{column.map((item) => item.kind === 'image' ? (
-						<button class="media-button image-button" type="button" data-lightbox-index={item.number - 1} aria-label={`View project image ${item.number}`}>
-							<img src={item.src} alt={`Project image ${item.number}`} loading={item.number <= 4 ? 'eager' : 'lazy'} decoding="async" />
+					{column.map((item) => item.type === 'image' ? (
+						<button class="media-button image-button" type="button" data-lightbox-index={item.lightboxIndex} aria-label={`View project image ${item.number}`}>
+							<img src={item.url} alt={`Project image ${item.number}`} loading={item.number <= 4 ? 'eager' : 'lazy'} decoding="async" />
 						</button>
 					) : (
-						<button class="media-button video-button" type="button" data-video-src={item.src} aria-label={`Play project video ${item.number}`}>
+						<button class="media-button video-button" type="button" data-video-src={item.url} aria-label={`Play project video ${item.number}`}>
 							{item.cover ? <img src={item.cover} alt="" loading="eager" decoding="async" /> : <span class="video-placeholder" aria-hidden="true"></span>}
 							<span class="play-icon" aria-hidden="true"></span>
 						</button>
@@ -90,7 +69,7 @@ const columns = Array.from({ length: 4 }, (_, column) => mediaItems.filter((_, i
 			))}
 		</section>
 
-		<ImageLightbox items={images} triggerSelector=".project-gallery .image-button" ariaLabel="Project image viewer" altPrefix="Project image" />
+		<ImageLightbox items={lightboxImages} triggerSelector=".project-gallery .image-button" ariaLabel="Project image viewer" altPrefix="Project image" />
 
 		<dialog class="media-dialog video-dialog" aria-label="Project video player">
 			<button class="dialog-close" type="button" aria-label="Close video player">CLOSE</button>
@@ -135,9 +114,10 @@ const columns = Array.from({ length: 4 }, (_, column) => mediaItems.filter((_, i
 <style>
 	.project-page { padding-top: clamp(60px, 6vw, 95px); }
 	.project-intro { display: flex; flex-direction: column; align-items: flex-start; gap: 32px; width: 100%; min-height: 260px; padding: 0 50px 48px; }
-	h1 { margin: 0; font-size: 13px; line-height: 1; font-weight: 400; letter-spacing: .04em; }
+	h1 { margin: 0; font-size: 14px; line-height: 1; font-weight: 400; letter-spacing: .04em; }
 	.project-intro p { margin: 0; font-size: 13px; line-height: 1.8; }
-	.description { max-width: 430px; }
+	.project-intro .project-meta { color: #777; font-size: 12px; line-height: 1.4; letter-spacing: .03em; }
+	.project-intro .description { max-width: 430px; font-size: 11px; }
 	.services { display: flex; flex-direction: column; }
 	.services p:first-child { margin-bottom: 12px; }
 	.project-gallery { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 50px; width: 100%; min-height: 45vh; padding: 20px 50px 50px; }

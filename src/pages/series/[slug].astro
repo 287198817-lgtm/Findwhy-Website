@@ -1,0 +1,20 @@
+---
+import SeriesPage from '../../components/SeriesPage.astro';
+import { getSeriesBySlug } from '../../lib/payload/series';
+
+export const prerender = false;
+const { slug } = Astro.params;
+if (!slug) throw new Error('Series slug is required.');
+let series = null;
+let loadError = false;
+try { series = await getSeriesBySlug(slug); }
+catch (error) { loadError = true; console.error(`Unable to load Series ${slug} from Payload.`, error); }
+if (!series) Astro.response.status = loadError ? 502 : 404;
+---
+
+{series ? <SeriesPage series={series} /> : <main class="series-state"><p>{loadError ? 'SERIES COULD NOT BE LOADED.' : 'SERIES NOT FOUND.'}</p></main>}
+<style>
+	.series-state { min-height: 100vh; padding: 50px; background: #fff; font-size: 11px; letter-spacing: .04em; }
+	.series-state p { margin: 0; }
+	@media (max-width: 809px) { .series-state { padding: 28px 20px; } }
+</style>
