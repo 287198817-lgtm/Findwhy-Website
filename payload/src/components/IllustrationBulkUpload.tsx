@@ -1,9 +1,11 @@
 'use client'
 
+import { useUploadHandlers } from '@payloadcms/ui'
 import { useRouter } from 'next/navigation'
 import React, { useId, useState } from 'react'
 
 import { findOrCreateImage, responseError } from './illustrationAdminUtils'
+import { sortFilesNaturally } from './clientMediaUpload'
 
 type UploadResult = {
   failed: Array<{ filename: string; message: string }>
@@ -11,13 +13,15 @@ type UploadResult = {
 }
 
 export const IllustrationBulkUpload: React.FC = () => {
+  const { getUploadHandler } = useUploadHandlers()
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState('')
   const [result, setResult] = useState<UploadResult | null>(null)
   const inputID = useId()
   const router = useRouter()
 
-  const uploadFiles = async (files: File[]) => {
+  const uploadFiles = async (selectedFiles: File[]) => {
+    const files = sortFilesNaturally(selectedFiles)
     const nextResult: UploadResult = { failed: [], succeeded: [] }
     setRunning(true)
     setResult(null)
@@ -26,7 +30,10 @@ export const IllustrationBulkUpload: React.FC = () => {
       setProgress(`Processing ${index + 1} of ${files.length}: ${file.name}`)
 
       try {
-        const { document } = await findOrCreateImage(file)
+        const { document } = await findOrCreateImage(
+          file,
+          getUploadHandler({ collectionSlug: 'images' }),
+        )
         const response = await fetch('/api/illustrations', {
           method: 'POST',
           credentials: 'include',

@@ -1,3 +1,6 @@
+import type { ClientUploadHandler } from './clientMediaUpload'
+import { createMediaDocument } from './clientMediaUpload'
+
 export type ImageDocument = {
   id: number | string
   filename?: string | null
@@ -33,7 +36,7 @@ export const responseError = async (response: Response, fallback: string) => {
   return result?.errors?.[0]?.message || result?.message || fallback
 }
 
-export const findOrCreateImage = async (file: File) => {
+export const findOrCreateImage = async (file: File, uploadHandler: ClientUploadHandler | null) => {
   const duplicateQuery = new URLSearchParams({
     depth: '0',
     limit: '1',
@@ -48,20 +51,14 @@ export const findOrCreateImage = async (file: File) => {
     return { document: duplicateResult.docs[0], reused: true }
   }
 
-  const formData = new FormData()
-  formData.append('file', file)
-  formData.append(
-    '_payload',
-    JSON.stringify({
+  const uploadResponse = await createMediaDocument({
+    collectionSlug: 'images',
+    data: {
       alt: filenameToAlt(file.name) || file.name,
       metadata: { copyright: '© Findwhy' },
-    }),
-  )
-
-  const uploadResponse = await fetch('/api/images', {
-    method: 'POST',
-    credentials: 'include',
-    body: formData,
+    },
+    file,
+    uploadHandler,
   })
 
   if (!uploadResponse.ok) {

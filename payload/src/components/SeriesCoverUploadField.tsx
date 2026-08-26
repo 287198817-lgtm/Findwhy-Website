@@ -1,6 +1,6 @@
 'use client'
 
-import { useField } from '@payloadcms/ui'
+import { useField, useUploadHandlers } from '@payloadcms/ui'
 import type { UploadFieldClientComponent } from 'payload'
 import React, { useEffect, useId, useState } from 'react'
 
@@ -10,6 +10,7 @@ type ImageValue = ImageDocument | number | string | null
 const imageID = (value: ImageValue) => value && typeof value === 'object' ? value.id : value
 
 export const SeriesCoverUploadField: UploadFieldClientComponent = ({ path }) => {
+  const { getUploadHandler } = useUploadHandlers()
   const { errorMessage, setValue, showError, value } = useField<ImageValue>({ path })
   const [image, setImage] = useState<ImageDocument | null>(value && typeof value === 'object' ? value : null)
   const [status, setStatus] = useState<'idle' | 'uploading' | 'error'>('idle')
@@ -35,7 +36,10 @@ export const SeriesCoverUploadField: UploadFieldClientComponent = ({ path }) => 
     setStatus('uploading')
     setStatusMessage('Uploading and processing Series cover…')
     try {
-      const { document, reused } = await findOrCreateImage(file)
+      const { document, reused } = await findOrCreateImage(
+        file,
+        getUploadHandler({ collectionSlug: 'images' }),
+      )
       setValue(document.id)
       setImage(document)
       setStatus('idle')

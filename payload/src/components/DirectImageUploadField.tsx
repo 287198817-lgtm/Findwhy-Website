@@ -1,6 +1,6 @@
 'use client'
 
-import { useField } from '@payloadcms/ui'
+import { useField, useUploadHandlers } from '@payloadcms/ui'
 import type { UploadFieldClientComponent } from 'payload'
 import React, { useEffect, useId, useState } from 'react'
 
@@ -19,6 +19,7 @@ const getImageID = (value: ImageValue) => {
 }
 
 export const DirectImageUploadField: UploadFieldClientComponent = ({ path }) => {
+  const { getUploadHandler } = useUploadHandlers()
   const { errorMessage, setValue, showError, value } = useField<ImageValue>({ path })
   const { setValue: setSlug, value: slug } = useField<string | null>({ path: 'slug' })
   const { setValue: setOrder, value: order } = useField<number | null>({ path: 'order' })
@@ -58,7 +59,10 @@ export const DirectImageUploadField: UploadFieldClientComponent = ({ path }) => 
     setStatusMessage('Uploading and processing image…')
 
     try {
-      const { document, reused } = await findOrCreateImage(file)
+      const { document, reused } = await findOrCreateImage(
+        file,
+        getUploadHandler({ collectionSlug: 'images' }),
+      )
 
       setValue(document.id)
       setImage(document)

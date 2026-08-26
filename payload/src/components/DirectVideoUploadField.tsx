@@ -1,6 +1,6 @@
 'use client'
 
-import { useField } from '@payloadcms/ui'
+import { useField, useUploadHandlers } from '@payloadcms/ui'
 import type { UploadFieldClientComponent } from 'payload'
 import React, { useEffect, useId, useState } from 'react'
 
@@ -19,6 +19,7 @@ const videoIDFrom = (value: VideoValue) => {
 }
 
 export const DirectVideoUploadField: UploadFieldClientComponent = ({ path }) => {
+  const { getUploadHandler } = useUploadHandlers()
   const { errorMessage, setValue, showError, value } = useField<VideoValue>({ path })
   const { setValue: setPoster } = useField<number | string | null>({ path: 'poster' })
   const { setValue: setOrder, value: order } = useField<number | null>({ path: 'order' })
@@ -48,16 +49,26 @@ export const DirectVideoUploadField: UploadFieldClientComponent = ({ path }) => 
 
   const uploadVideo = async (file: File) => {
     setStatus('uploading')
-    setMessage('Uploading video and generating poster…')
+    setMessage('Uploading video…')
 
     try {
-      const { document, reused } = await findOrCreateVideo(file)
+      const { document, posterWarning, reused } = await findOrCreateVideo(
+        file,
+        getUploadHandler({ collectionSlug: 'videos' }),
+        getUploadHandler({ collectionSlug: 'images' }),
+      )
       setValue(document.id)
       setVideo(document)
       setPoster(relationshipID(document.poster))
       if (order === null || order === undefined) setOrder(await getNextAnimationOrder())
       setStatus('idle')
-      setMessage(reused ? 'Existing video reused and linked.' : 'Video and poster created successfully.')
+      setMessage(
+        reused
+          ? 'Existing video reused and linked.'
+          : document.poster
+            ? 'Video and poster created successfully.'
+            : `Video uploaded without poster.${posterWarning ? ` ${posterWarning}` : ''}`,
+      )
     } catch (error) {
       setStatus('error')
       setMessage(error instanceof Error ? error.message : 'Video upload failed.')

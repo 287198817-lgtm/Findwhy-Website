@@ -1,16 +1,18 @@
 'use client'
 
-import { useField } from '@payloadcms/ui'
+import { useField, useUploadHandlers } from '@payloadcms/ui'
 import type { UploadFieldClientComponent } from 'payload'
 import React, { useEffect, useId, useMemo, useState } from 'react'
 
 import { findOrCreateImage, type ImageDocument } from './illustrationAdminUtils'
+import { sortFilesNaturally } from './clientMediaUpload'
 
 type ImageValue = ImageDocument | number | string
 
 const relationshipID = (value: ImageValue) => typeof value === 'object' ? value.id : value
 
 export const ProjectGalleryUploadField: UploadFieldClientComponent = ({ path }) => {
+  const { getUploadHandler } = useUploadHandlers()
   const { errorMessage, setValue, showError, value } = useField<ImageValue[]>({ path })
   const [images, setImages] = useState<ImageDocument[]>(
     Array.isArray(value) ? value.filter((item): item is ImageDocument => typeof item === 'object') : [],
@@ -33,12 +35,15 @@ export const ProjectGalleryUploadField: UploadFieldClientComponent = ({ path }) 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsKey])
 
-  const upload = async (files: File[]) => {
+  const upload = async (selectedFiles: File[]) => {
+    const files = sortFilesNaturally(selectedFiles)
     setStatus(`Uploading ${files.length} image${files.length === 1 ? '' : 's'}…`)
     try {
       const uploaded: ImageDocument[] = []
       for (const file of files) {
-        uploaded.push((await findOrCreateImage(file)).document)
+        uploaded.push(
+          (await findOrCreateImage(file, getUploadHandler({ collectionSlug: 'images' }))).document,
+        )
       }
       const combined = [...images, ...uploaded]
         .filter((image, index, all) => all.findIndex((candidate) => String(candidate.id) === String(image.id)) === index)

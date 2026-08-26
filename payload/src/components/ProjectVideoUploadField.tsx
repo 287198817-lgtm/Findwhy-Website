@@ -1,15 +1,17 @@
 'use client'
 
-import { useField } from '@payloadcms/ui'
+import { useField, useUploadHandlers } from '@payloadcms/ui'
 import type { UploadFieldClientComponent } from 'payload'
 import React, { useEffect, useId, useMemo, useState } from 'react'
 
 import { findOrCreateVideo, relationshipID, type VideoDocument } from './animationAdminUtils'
+import { sortFilesNaturally } from './clientMediaUpload'
 
 type VideoValue = VideoDocument | number | string
 const videoID = (value: VideoValue) => typeof value === 'object' ? value.id : value
 
 export const ProjectVideoUploadField: UploadFieldClientComponent = ({ path }) => {
+  const { getUploadHandler } = useUploadHandlers()
   const { errorMessage, setValue, showError, value } = useField<VideoValue[]>({ path })
   const { setValue: setVideoCovers } = useField<Array<number | string>>({ path: 'videoCover' })
   const [videos, setVideos] = useState<VideoDocument[]>(
@@ -39,17 +41,27 @@ export const ProjectVideoUploadField: UploadFieldClientComponent = ({ path }) =>
     setVideoCovers(documents.map((video) => relationshipID(video.poster)).filter((id): id is number | string => id !== null && id !== undefined))
   }
 
-  const upload = async (files: File[]) => {
-    setStatus(`Uploading ${files.length} video${files.length === 1 ? '' : 's'} and generating poster…`)
+  const upload = async (selectedFiles: File[]) => {
+    const files = sortFilesNaturally(selectedFiles)
+    setStatus(`Uploading ${files.length} video${files.length === 1 ? '' : 's'}…`)
     try {
       const uploaded: VideoDocument[] = []
       for (const file of files) {
-        uploaded.push((await findOrCreateVideo(file)).document)
+        uploaded.push(
+          (await findOrCreateVideo(
+            file,
+            getUploadHandler({ collectionSlug: 'videos' }),
+            getUploadHandler({ collectionSlug: 'images' }),
+          )).document,
+        )
       }
       const combined = [...videos, ...uploaded]
         .filter((video, index, all) => all.findIndex((candidate) => String(candidate.id) === String(video.id)) === index)
       updateRelationships(combined)
-      setStatus(`${uploaded.length} video${uploaded.length === 1 ? '' : 's'} uploaded with poster.`)
+      const postersPending = uploaded.some((video) => !video.poster)
+      setStatus(
+        `${uploaded.length} video${uploaded.length === 1 ? '' : 's'} uploaded${postersPending ? '; poster generation pending.' : ' with poster.'}`,
+      )
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Video upload failed.')
     }

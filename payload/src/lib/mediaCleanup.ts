@@ -39,8 +39,13 @@ const collectionHasReference = async (
     : result.totalDocs > 0
 }
 
-const imageHasReference = async (req: PayloadRequest, id: MediaID, owner: CleanupInput, deletedVideoIDs: Set<string>) => {
-  const exclude = { collection: owner.ownerCollection, id: owner.ownerID }
+const imageHasReference = async (
+  req: PayloadRequest,
+  id: MediaID,
+  owner?: Pick<CleanupInput, 'ownerCollection' | 'ownerID'>,
+  deletedVideoIDs = new Set<string>(),
+) => {
+  const exclude = owner ? { collection: owner.ownerCollection, id: owner.ownerID } : undefined
   if (await collectionHasReference(req, 'illustrations', ['image'], id)) return true
   if (await collectionHasReference(req, 'animations', ['poster'], id)) return true
   if (await collectionHasReference(req, 'projects', ['coverImage', 'images', 'videoCover'], id, exclude)) return true
@@ -51,6 +56,16 @@ const imageHasReference = async (req: PayloadRequest, id: MediaID, owner: Cleanu
   if (videoReferences.docs.some((video) => !deletedVideoIDs.has(String(video.id)))) return true
   const about = await req.payload.findGlobal({ slug: 'about', depth: 0 })
   return String(relationshipID(about.portrait)) === String(id)
+}
+
+export const cleanupUnreferencedImage = async (
+  req: PayloadRequest,
+  id: MediaID,
+  deletedVideoIDs = new Set<string>(),
+) => {
+  if (await imageHasReference(req, id, undefined, deletedVideoIDs)) return false
+  await req.payload.delete({ collection: 'images', id, req })
+  return true
 }
 
 const videoHasReference = async (req: PayloadRequest, id: MediaID, owner: CleanupInput) => {
@@ -69,12 +84,23 @@ export const cleanupOwnedMedia = async (input: CleanupInput) => {
     if (await videoHasReference(input.req, id, input)) continue
     const video = await input.req.payload.findByID({ collection: 'videos', depth: 0, id })
     const posterID = relationshipID(video.poster)
+    // Keep the poster in the owner's cleanup set as well. During a nested
+    // delete, the Video afterDelete hook can still see the owner inside the
+    // outer transaction and correctly defer deleting the poster. The owner
+    // pass below excludes that document and performs the final cleanup.
     if (posterID !== null) imageIDs.set(String(posterID), posterID)
     await input.req.payload.delete({ collection: 'videos', id, req: input.req })
     deletedVideoIDs.add(String(id))
   }
 
   for (const id of imageIDs.values()) {
+    const existing = await input.req.payload.find({
+      collection: 'images',
+      depth: 0,
+      limit: 1,
+      where: { id: { equals: id } },
+    })
+    if (existing.totalDocs === 0) continue
     if (await imageHasReference(input.req, id, input, deletedVideoIDs)) continue
     await input.req.payload.delete({ collection: 'images', id, req: input.req })
   }

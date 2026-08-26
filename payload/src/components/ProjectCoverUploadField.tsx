@@ -1,6 +1,6 @@
 'use client'
 
-import { useField } from '@payloadcms/ui'
+import { useField, useUploadHandlers } from '@payloadcms/ui'
 import type { UploadFieldClientComponent } from 'payload'
 import React, { useEffect, useId, useState } from 'react'
 
@@ -11,6 +11,7 @@ type ImageValue = ImageDocument | number | string | null
 const relationshipID = (value: ImageValue) => value && typeof value === 'object' ? value.id : value
 
 export const ProjectCoverUploadField: UploadFieldClientComponent = ({ path }) => {
+  const { getUploadHandler } = useUploadHandlers()
   const { errorMessage, setValue, showError, value } = useField<ImageValue>({ path })
   const [image, setImage] = useState<ImageDocument | null>(
     value && typeof value === 'object' ? value : null,
@@ -32,7 +33,10 @@ export const ProjectCoverUploadField: UploadFieldClientComponent = ({ path }) =>
   const upload = async (file: File) => {
     setStatus('Uploading cover image…')
     try {
-      const { document, reused } = await findOrCreateImage(file)
+      const { document, reused } = await findOrCreateImage(
+        file,
+        getUploadHandler({ collectionSlug: 'images' }),
+      )
       setValue(document.id)
       setImage(document)
       setStatus(reused ? 'Existing image reused and linked.' : 'Cover uploaded and linked.')

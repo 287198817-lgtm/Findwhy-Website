@@ -168,6 +168,7 @@ export interface Image {
     copyright?: string | null;
     source?: string | null;
   };
+  prefix?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -206,6 +207,7 @@ export interface Video {
   id: number;
   alt?: string | null;
   poster?: (number | null) | Image;
+  prefix?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -442,6 +444,7 @@ export interface ImagesSelect<T extends boolean = true> {
         copyright?: T;
         source?: T;
       };
+  prefix?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -485,6 +488,7 @@ export interface ImagesSelect<T extends boolean = true> {
 export interface VideosSelect<T extends boolean = true> {
   alt?: T;
   poster?: T;
+  prefix?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
