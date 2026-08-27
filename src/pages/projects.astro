@@ -2,6 +2,8 @@
 import PortfolioLayout from '../layouts/PortfolioLayout.astro';
 import { getProjects, type ProjectItem } from '../lib/payload/projects';
 
+export const prerender = false;
+
 let projects: ProjectItem[] = [];
 let loadError = false;
 try {

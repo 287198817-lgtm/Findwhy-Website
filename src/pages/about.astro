@@ -2,6 +2,8 @@
 import PortfolioLayout from '../layouts/PortfolioLayout.astro';
 import { getAbout } from '../lib/payload/about';
 
+export const prerender = false;
+
 const about = await getAbout();
 const cleanIntro = (paragraph: string) => paragraph.replace(/^2[ \t]*/, '');
 const serviceRows = Array.from(

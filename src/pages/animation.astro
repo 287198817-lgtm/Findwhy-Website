@@ -3,6 +3,8 @@ import Gallery from '../components/Gallery.astro';
 import PortfolioLayout from '../layouts/PortfolioLayout.astro';
 import { getAnimations } from '../lib/payload/animations';
 
+export const prerender = false;
+
 const payloadAnimations = await getAnimations();
 const animations = payloadAnimations.map((entry, index) => ({
 	src: entry.video,

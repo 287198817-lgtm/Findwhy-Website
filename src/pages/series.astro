@@ -3,6 +3,8 @@ import Gallery from '../components/Gallery.astro';
 import PortfolioLayout from '../layouts/PortfolioLayout.astro';
 import { getSeries, type SeriesItem } from '../lib/payload/series';
 
+export const prerender = false;
+
 let series: SeriesItem[] = [];
 let loadError = false;
 try { series = await getSeries(); }
