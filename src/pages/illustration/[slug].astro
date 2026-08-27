@@ -7,7 +7,9 @@ import { resolveMediaUrl } from '../../lib/mediaUrl';
 
 export async function getStaticPaths() {
 	const series = await getCollection('series');
-	return series.filter((entry) => !entry.data.draft).map((entry) => ({ params: { slug: entry.id } }));
+	return series
+		.filter((entry) => !entry.data.draft && entry.id !== 'gh')
+		.map((entry) => ({ params: { slug: entry.id } }));
 }
 
 const { slug } = Astro.params;
