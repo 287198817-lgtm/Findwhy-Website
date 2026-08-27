@@ -10,5 +10,13 @@ export default defineConfig({
 			destination: '/series/explosion',
 			status: 301,
 		},
+		'/illustration/manian': {
+			destination: '/series/manian',
+			status: 301,
+		},
+		'/illustration/mengyou': {
+			destination: '/series/mengyou',
+			status: 301,
+		},
 	},
 });
