@@ -3,7 +3,17 @@ import Gallery from '../components/Gallery.astro';
 import PortfolioLayout from '../layouts/PortfolioLayout.astro';
 import { getIllustrations } from '../lib/payload/illustrations';
 
+export const prerender = false;
+
 const payloadIllustrations = await getIllustrations();
+console.info('[illustration] Payload illustrations loaded', {
+	count: payloadIllustrations.length,
+	items: payloadIllustrations.map((entry) => ({
+		slug: entry.slug,
+		order: entry.order,
+		filename: decodeURIComponent(entry.image.split('/').at(-1)?.split('?')[0] ?? ''),
+	})),
+});
 const illustrations = payloadIllustrations.map((entry, index) => ({
 		kind: 'image' as const,
 		src: entry.image,
