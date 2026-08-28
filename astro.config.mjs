@@ -7,7 +7,8 @@ export default defineConfig({
 	adapter: vercel(),
 	vite: {
 		build: {
-			cssTarget: ['safari16.2', 'ios16.2'],
+			target: ['safari16.2', 'ios16.2', 'chrome100', 'edge100', 'firefox100'],
+			cssTarget: ['safari16.2', 'ios16.2', 'chrome100', 'edge100', 'firefox100'],
 		},
 	},
 	redirects: {
