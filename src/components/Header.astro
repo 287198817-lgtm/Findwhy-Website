@@ -27,10 +27,10 @@ try {
 	<a class="logo" href="/illustration" aria-label="Findwhy home">
 		<img src="/findwhy-logo.png" alt="FINDWHY" width="170" height="31" />
 	</a>
-	<nav aria-label="Main navigation">
+	<nav class="desktop-nav" aria-label="Main navigation">
 		{links.slice(0, 3).map((link) => <a class="nav-link translatable" href={link.href} aria-current={active === link.id ? 'page' : undefined} data-en={link.label} data-zh={link.zh}>{link.label}</a>)}
 		<div class="project-menu">
-			<button class="nav-link project-trigger translatable" type="button" aria-current={active === 'projects' ? 'page' : undefined} aria-haspopup="true" aria-expanded="false" data-en="PROJECTS +" data-zh="项目 +">PROJECTS +</button>
+			<button class="nav-link project-trigger desktop-project-trigger translatable" type="button" aria-current={active === 'projects' ? 'page' : undefined} aria-haspopup="true" aria-expanded="false" data-en="PROJECTS +" data-zh="项目 +">PROJECTS +</button>
 			<div class="dropdown">
 				{projects.map((project) => <a class="translatable" href={project.href} data-en={project.labelEn} data-zh={project.labelZh}>{project.labelEn}</a>)}
 			</div>
@@ -42,11 +42,38 @@ try {
 			<button class="language-button" type="button" data-language="zh" aria-pressed="false">中</button>
 		</div>
 	</nav>
+	<button class="mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-navigation" aria-label="Open navigation">
+		<span aria-hidden="true"></span>
+	</button>
+	<div class="mobile-navigation" id="mobile-navigation" data-state="closed" aria-hidden="true">
+		<div class="mobile-nav-panel mobile-main-panel" aria-label="Mobile navigation">
+			<div class="mobile-main-content">
+				<nav class="mobile-main-links" aria-label="Mobile main navigation">
+					{links.slice(0, 3).map((link) => <a class="translatable mobile-nav-link" href={link.href} aria-current={active === link.id ? 'page' : undefined} data-en={link.label} data-zh={link.zh}>{link.label}</a>)}
+					<button class="mobile-nav-link mobile-projects-trigger translatable" type="button" aria-controls="mobile-projects-panel" data-en="PROJECTS +" data-zh="项目 +">PROJECTS +</button>
+					{links.slice(3).map((link) => <a class="translatable mobile-nav-link" href={link.href} aria-current={active === link.id ? 'page' : undefined} data-en={link.label} data-zh={link.zh}>{link.label}</a>)}
+				</nav>
+				<div class="language-switch mobile-language-switch" aria-label="Language">
+					<button class="language-button" type="button" data-language="en" aria-pressed="true">EN</button>
+					<span aria-hidden="true">/</span>
+					<button class="language-button" type="button" data-language="zh" aria-pressed="false">中</button>
+				</div>
+			</div>
+		</div>
+		<div class="mobile-nav-panel mobile-projects-panel" id="mobile-projects-panel" aria-label="Projects navigation">
+			<div class="mobile-projects-content">
+				<button class="mobile-projects-back translatable" type="button" data-en="← PROJECTS" data-zh="← 项目">← PROJECTS</button>
+				<div class="mobile-project-links">
+					{projects.map((project) => <a class="translatable mobile-project-link" href={project.href} data-en={project.labelEn} data-zh={project.labelZh}>{project.labelEn}</a>)}
+				</div>
+			</div>
+		</div>
+	</div>
 </header>
 
 <script>
 	const projectMenu = document.querySelector<HTMLElement>('.project-menu');
-	const projectTrigger = projectMenu?.querySelector<HTMLButtonElement>('.project-trigger');
+	const projectTrigger = projectMenu?.querySelector<HTMLButtonElement>('.desktop-project-trigger');
 	const touchQuery = window.matchMedia('(hover: none), (pointer: coarse)');
 	const isTouchDevice = () => touchQuery.matches || navigator.maxTouchPoints > 0;
 
@@ -65,6 +92,42 @@ try {
 
 	document.addEventListener('click', (event) => {
 		if (isTouchDevice() && !projectMenu?.contains(event.target as Node)) closeProjectMenu();
+	});
+
+	const mobileToggle = document.querySelector<HTMLButtonElement>('.mobile-menu-toggle');
+	const mobileNavigation = document.querySelector<HTMLElement>('.mobile-navigation');
+	const mobileProjectsTrigger = document.querySelector<HTMLButtonElement>('.mobile-projects-trigger');
+	const mobileProjectsBack = document.querySelector<HTMLButtonElement>('.mobile-projects-back');
+	type MobileNavigationState = 'closed' | 'main' | 'projects';
+
+	const setMobileNavigationState = (state: MobileNavigationState) => {
+		if (!mobileToggle || !mobileNavigation) return;
+		const isOpen = state !== 'closed';
+		mobileNavigation.dataset.state = state;
+		mobileNavigation.setAttribute('aria-hidden', String(!isOpen));
+		mobileToggle.setAttribute('aria-expanded', String(isOpen));
+		mobileToggle.setAttribute('aria-label', isOpen ? 'Close navigation' : 'Open navigation');
+		document.body.classList.toggle('mobile-nav-open', isOpen);
+		if (state === 'projects') mobileProjectsBack?.focus();
+		if (state === 'main' && mobileNavigation.dataset.previousState === 'projects') mobileProjectsTrigger?.focus();
+		mobileNavigation.dataset.previousState = state;
+	};
+
+	mobileToggle?.addEventListener('click', () => {
+		setMobileNavigationState(mobileNavigation?.dataset.state === 'closed' ? 'main' : 'closed');
+	});
+	mobileProjectsTrigger?.addEventListener('click', () => setMobileNavigationState('projects'));
+	mobileProjectsBack?.addEventListener('click', () => setMobileNavigationState('main'));
+	mobileNavigation?.querySelectorAll<HTMLAnchorElement>('a').forEach((link) => {
+		link.addEventListener('click', () => setMobileNavigationState('closed'));
+	});
+	document.addEventListener('keydown', (event) => {
+		if (event.key !== 'Escape' || mobileNavigation?.dataset.state === 'closed') return;
+		setMobileNavigationState('closed');
+		mobileToggle?.focus();
+	});
+	window.addEventListener('resize', () => {
+		if (window.innerWidth > 809 && mobileNavigation?.dataset.state !== 'closed') setMobileNavigationState('closed');
 	});
 
 	const languageButtons = document.querySelectorAll<HTMLButtonElement>('.language-button');
@@ -88,10 +151,10 @@ try {
 	.site-header { display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 30; width: 100%; padding: 50px; }
 	.logo { display: block; flex: 0 0 auto; width: 170px; height: 32px; }
 	.logo img { display: block; width: 170px; height: 31px; object-fit: contain; object-position: left center; }
-	nav { display: flex; align-items: center; gap: 28px; }
-	.nav-link { position: relative; font-size: 13px; line-height: 1; letter-spacing: .04em; white-space: nowrap; }
+	.desktop-nav { display: flex; align-items: center; gap: 28px; }
+	.nav-link { position: relative; font-size: 15px; line-height: 1; letter-spacing: .04em; white-space: nowrap; }
 	.project-trigger { appearance: none; border: 0; margin: 0; padding: 0; color: inherit; background: transparent; transform: translateY(-1px); }
-	.language-switch { display: flex; align-items: center; gap: 5px; font-size: 13px; line-height: 1; letter-spacing: .04em; white-space: nowrap; }
+	.language-switch { display: flex; align-items: center; gap: 5px; font-size: 15px; line-height: 1; letter-spacing: .04em; white-space: nowrap; }
 	.language-button { appearance: none; border: 0; margin: 0; padding: 0; color: inherit; background: transparent; cursor: pointer; }
 	.language-button[aria-pressed='false'] { opacity: .45; }
 	.nav-link::after { content: ''; position: absolute; left: 0; right: 100%; bottom: -5px; height: 1px; background: #000; transition: right .25s ease; }
@@ -99,7 +162,7 @@ try {
 	.project-menu { position: relative; }
 	.dropdown { display: none; flex-direction: column; gap: 16px; position: absolute; top: calc(100% + 17px); left: -18px; z-index: 10; min-width: 205px; padding: 18px; background: #fff; }
 	.dropdown::before { content: ''; position: absolute; right: 0; bottom: 100%; left: 0; height: 20px; }
-	.dropdown a { display: block; font-size: 12px; line-height: 1.25; letter-spacing: .02em; white-space: nowrap; }
+	.dropdown a { display: block; font-size: 14px; line-height: 1.25; letter-spacing: .02em; white-space: nowrap; }
 	.dropdown a:hover, .dropdown a:focus-visible { opacity: .5; }
 	.project-menu:hover > .dropdown { display: flex; }
 	.project-menu.is-open > .dropdown { display: flex; }
@@ -107,13 +170,37 @@ try {
 		.project-menu:hover > .dropdown { display: none; }
 		.project-menu.is-open > .dropdown { display: flex; }
 	}
+	.mobile-menu-toggle, .mobile-navigation { display: none; }
+	@media (min-width: 810px) and (max-width: 900px) {
+		.desktop-nav { gap: 24px; }
+	}
 	@media (max-width: 809px) {
 		.site-header { align-items: flex-start; padding: 28px 20px; }
 		.logo, .logo img { width: 122px; height: auto; }
-		nav { display: grid; grid-template-columns: repeat(2, auto); gap: 10px 18px; justify-items: start; }
-		.nav-link { font-size: 10px; }
-		.language-switch { font-size: 10px; }
-		.dropdown { top: calc(100% + 12px); left: -12px; min-width: 170px; padding: 14px 12px; }
-		.dropdown a { font-size: 10px; }
+		.logo { position: relative; z-index: 2; }
+		.desktop-nav { display: none; }
+		.mobile-menu-toggle { appearance: none; display: grid; place-items: center; position: relative; z-index: 2; width: 44px; height: 44px; margin: -10px -10px 0 0; border: 0; padding: 0; color: inherit; background: transparent; cursor: pointer; }
+		.mobile-menu-toggle::before, .mobile-menu-toggle::after { content: ''; position: absolute; width: 24px; height: 1px; background: #000; transition: transform .3s ease; }
+		.mobile-menu-toggle::after { transform: rotate(90deg); }
+		.mobile-menu-toggle[aria-expanded='true']::before { transform: rotate(45deg); }
+		.mobile-menu-toggle[aria-expanded='true']::after { transform: rotate(-45deg); }
+		.mobile-navigation { position: fixed; inset: 0; z-index: 1; background: #fff; }
+		.mobile-navigation:not([data-state='closed']) { display: block; }
+		.mobile-nav-panel { display: none; width: 100%; height: 100%; padding: 96px 20px 40px; }
+		.mobile-navigation[data-state='main'] .mobile-main-panel, .mobile-navigation[data-state='projects'] .mobile-projects-panel { display: grid; place-items: center; }
+		.mobile-main-content, .mobile-projects-content { display: flex; flex-direction: column; align-items: center; width: 100%; }
+		.mobile-main-links { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+		.mobile-nav-link, .mobile-projects-back, .mobile-project-link { appearance: none; border: 0; margin: 0; padding: 0; color: inherit; background: transparent; line-height: 1.2; letter-spacing: .04em; text-align: center; cursor: pointer; }
+		.mobile-nav-link { font-size: 26px; }
+		.mobile-nav-link[aria-current='page'] { text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 1px; }
+		.mobile-language-switch { margin-top: 52px; font-size: 17px; }
+		.mobile-projects-content { gap: 42px; }
+		.mobile-projects-back { font-size: 18px; }
+		.mobile-project-links { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+		.mobile-project-link { font-size: 23px; }
+		:global(body.mobile-nav-open) { overflow: hidden; }
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.mobile-menu-toggle::before, .mobile-menu-toggle::after { transition-duration: .01ms; }
 	}
 </style>
