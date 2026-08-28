@@ -3,6 +3,7 @@ import { getImageUrls, type PayloadImage } from './media';
 
 interface PayloadMedia extends PayloadImage {
 	url?: string | null;
+	webVideo?: PayloadMedia | number | string | null;
 }
 
 interface PayloadAnimation {
@@ -39,7 +40,7 @@ export const getAnimations = async (): Promise<AnimationItem[]> => {
 
 	do {
 		const params = new URLSearchParams({
-			depth: '1',
+			depth: '2',
 			limit: '100',
 			page: String(page),
 			sort: 'order',
@@ -58,7 +59,9 @@ export const getAnimations = async (): Promise<AnimationItem[]> => {
 			const poster = getImageUrls(document.poster);
 			return {
 				slug: document.slug,
-				video: getMediaUrl(document.video),
+				video: document.video && typeof document.video === 'object'
+					? getMediaUrl(document.video.webVideo) ?? getMediaUrl(document.video)
+					: getMediaUrl(document.video),
 				poster: poster?.fullUrl,
 				posterPreviewUrl: poster?.previewUrl,
 				order: document.order ?? Number.POSITIVE_INFINITY,

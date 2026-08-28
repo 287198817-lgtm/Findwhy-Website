@@ -9,6 +9,7 @@ import sharp from 'sharp'
 import { Users } from './collections/Users'
 import { Images } from './collections/Images'
 import { Videos } from './collections/Videos'
+import { WebVideos } from './collections/WebVideos'
 import { Illustrations } from './collections/Illustrations'
 import { Animations } from './collections/Animations'
 import { Series } from './collections/Series'
@@ -25,7 +26,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Images, Videos, Illustrations, Animations, Series, Projects],
+  collections: [Users, Images, Videos, WebVideos, Illustrations, Animations, Series, Projects],
   globals: [About],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
@@ -45,6 +46,7 @@ export default buildConfig({
       collections: {
         images: { prefix: 'images' },
         videos: { prefix: 'videos' },
+        'web-videos': { prefix: 'video-web' },
       },
       token: process.env.BLOB_READ_WRITE_TOKEN,
     }),

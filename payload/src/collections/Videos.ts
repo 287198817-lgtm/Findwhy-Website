@@ -22,5 +22,13 @@ export const Videos: CollectionConfig = {
     },
     { name: 'alt', type: 'text' },
     { name: 'poster', type: 'upload', relationTo: 'images' },
+    {
+      name: 'webVideo',
+      type: 'upload',
+      relationTo: 'web-videos',
+      admin: {
+        description: 'Optional web-optimized MP4 used for frontend playback. The original video remains unchanged.',
+      },
+    },
   ],
 }

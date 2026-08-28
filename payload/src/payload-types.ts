@@ -70,6 +70,7 @@ export interface Config {
     users: User;
     images: Image;
     videos: Video;
+    'web-videos': WebVideo;
     illustrations: Illustration;
     animations: Animation;
     series: Series;
@@ -84,6 +85,7 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     images: ImagesSelect<false> | ImagesSelect<true>;
     videos: VideosSelect<false> | VideosSelect<true>;
+    'web-videos': WebVideosSelect<false> | WebVideosSelect<true>;
     illustrations: IllustrationsSelect<false> | IllustrationsSelect<true>;
     animations: AnimationsSelect<false> | AnimationsSelect<true>;
     series: SeriesSelect<false> | SeriesSelect<true>;
@@ -215,6 +217,29 @@ export interface Video {
   id: number;
   alt?: string | null;
   poster?: (number | null) | Image;
+  /**
+   * Optional web-optimized MP4 used for frontend playback. The original video remains unchanged.
+   */
+  webVideo?: (number | null) | WebVideo;
+  prefix?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "web-videos".
+ */
+export interface WebVideo {
+  id: number;
   prefix?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -358,6 +383,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'videos';
         value: number | Video;
+      } | null)
+    | ({
+        relationTo: 'web-videos';
+        value: number | WebVideo;
       } | null)
     | ({
         relationTo: 'illustrations';
@@ -506,6 +535,25 @@ export interface ImagesSelect<T extends boolean = true> {
 export interface VideosSelect<T extends boolean = true> {
   alt?: T;
   poster?: T;
+  webVideo?: T;
+  prefix?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "web-videos_select".
+ */
+export interface WebVideosSelect<T extends boolean = true> {
   prefix?: T;
   updatedAt?: T;
   createdAt?: T;
