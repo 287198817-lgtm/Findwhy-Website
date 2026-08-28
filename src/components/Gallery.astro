@@ -17,7 +17,7 @@ const columns = Array.from({ length: columnCount }, (_, column) => displayItems.
 <section class:list={['gallery', { 'two-column': columnCount === 2 }]} data-gallery={type} aria-label={type === 'image' ? 'Illustration works' : 'Animation works'}>
 	{type === 'video' ? displayItems.map((item) => (
 		<div class="media-item video-item">
-			<video poster={item.poster} muted loop playsinline preload={item.number <= 4 ? 'auto' : 'metadata'} aria-label={`Findwhy animation ${item.number}`}>
+			<video poster={item.poster} muted loop playsinline preload="metadata" aria-label={`Findwhy animation ${item.number}`}>
 				<source src={item.src} type="video/mp4" />
 			</video>
 		</div>
