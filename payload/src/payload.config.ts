@@ -44,9 +44,9 @@ export default buildConfig({
       alwaysInsertFields: true,
       clientUploads: true,
       collections: {
-        images: { prefix: 'images' },
-        videos: { prefix: 'videos' },
-        'web-videos': { prefix: 'video-web' },
+        images: { disablePayloadAccessControl: true, prefix: 'images' },
+        videos: { disablePayloadAccessControl: true, prefix: 'videos' },
+        'web-videos': { disablePayloadAccessControl: true, prefix: 'video-web' },
       },
       token: process.env.BLOB_READ_WRITE_TOKEN,
     }),
