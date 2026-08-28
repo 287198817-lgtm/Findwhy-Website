@@ -5,6 +5,11 @@ import vercel from '@astrojs/vercel';
 // https://astro.build/config
 export default defineConfig({
 	adapter: vercel(),
+	vite: {
+		build: {
+			cssTarget: ['safari16.2', 'ios16.2'],
+		},
+	},
 	redirects: {
 		'/illustration/gh': {
 			destination: '/series/explosion',
