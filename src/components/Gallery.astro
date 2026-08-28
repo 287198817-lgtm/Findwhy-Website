@@ -10,7 +10,7 @@ const displayItems = items.map((item) => item.kind === 'series'
 	: { ...item, lightboxIndex: lightboxIndex++ });
 const lightboxItems = items
 	.filter((item) => item.kind !== 'series')
-	.map((item) => ({ ...item, src: item.fullSrc ?? item.src }));
+	.map((item) => ({ ...item, previewSrc: item.src, fullSrc: item.fullSrc ?? item.src }));
 const columns = Array.from({ length: columnCount }, (_, column) => displayItems.filter((_, index) => index % columnCount === column));
 ---
 
@@ -47,9 +47,26 @@ const columns = Array.from({ length: columnCount }, (_, column) => displayItems.
 
 <script define:vars={{ type }}>
 	if (type === 'video') {
-		document.querySelectorAll('video').forEach((video) => {
-			video.addEventListener('mouseenter', () => video.play().catch(() => {}));
-			video.addEventListener('mouseleave', () => video.pause());
+		const videos = Array.from(document.querySelectorAll('video'));
+		const supportsHover = () => window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+		videos.forEach((video) => {
+			video.addEventListener('mouseenter', () => {
+				if (supportsHover()) video.play().catch(() => {});
+			});
+			video.addEventListener('mouseleave', () => {
+				if (supportsHover()) video.pause();
+			});
+			video.addEventListener('pointerup', (event) => {
+				if (event.pointerType === 'mouse' && supportsHover()) return;
+				if (!video.paused) {
+					video.pause();
+					return;
+				}
+				videos.forEach((otherVideo) => {
+					if (otherVideo !== video) otherVideo.pause();
+				});
+				video.play().catch(() => {});
+			});
 		});
 	}
 </script>

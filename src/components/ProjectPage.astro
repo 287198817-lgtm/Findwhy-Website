@@ -33,7 +33,8 @@ const imageItems = project.imageMedia.map((image, index) => ({
 const mediaList = [...videoItems, ...imageItems].sort((a, b) => a.order - b.order);
 const lightboxImages = imageItems.map((image) => ({
 	kind: 'image' as const,
-	src: image.fullUrl,
+	previewSrc: image.url,
+	fullSrc: image.fullUrl,
 	number: image.number,
 }));
 const columns = Array.from({ length: 4 }, (_, column) => mediaList.filter((_, index) => index % 4 === column));

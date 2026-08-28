@@ -22,7 +22,12 @@ const imageItems = series.imageMedia.map((image, index) => ({
 }));
 const mediaList = [...videoItems, ...imageItems].sort((a, b) => a.order - b.order);
 const columns = Array.from({ length: 4 }, (_, column) => mediaList.filter((_, index) => index % 4 === column));
-const lightboxImages = imageItems.map((image) => ({ kind: 'image' as const, src: image.fullUrl, number: image.number }));
+const lightboxImages = imageItems.map((image) => ({
+	kind: 'image' as const,
+	previewSrc: image.url,
+	fullSrc: image.fullUrl,
+	number: image.number,
+}));
 ---
 
 <PortfolioLayout title={`Findwhy — ${series.titleEn}`} description={series.descriptionEn} active="series">

@@ -1,5 +1,5 @@
 ---
-interface Item { src: string; number: number }
+interface Item { previewSrc: string; fullSrc: string; number: number }
 interface Props {
 	items: Item[];
 	triggerSelector: string;
@@ -26,13 +26,44 @@ const {
 	const dialog = document.querySelector('.lightbox');
 	const image = dialog?.querySelector('img');
 	let current = 0;
+	let loadVersion = 0;
+	let preloader: HTMLImageElement | undefined;
+
+	const resetImage = () => {
+		loadVersion += 1;
+		if (preloader) {
+			preloader.onload = null;
+			preloader.onerror = null;
+			preloader = undefined;
+		}
+		image?.removeAttribute('src');
+		if (image) image.alt = '';
+	};
 
 	const show = (index) => {
 		if (!dialog || !image || items.length === 0) return;
 		current = (index + items.length) % items.length;
-		image.src = items[current].src;
+		const item = items[current];
+		const version = ++loadVersion;
+		if (preloader) {
+			preloader.onload = null;
+			preloader.onerror = null;
+		}
+		image.src = item.previewSrc;
 		image.alt = `${altPrefix} ${current + 1}`;
 		if (!dialog.open) dialog.showModal();
+		if (item.fullSrc === item.previewSrc) return;
+
+		const nextImage = new Image();
+		preloader = nextImage;
+		nextImage.onload = () => {
+			if (version === loadVersion) image.src = item.fullSrc;
+			if (preloader === nextImage) preloader = undefined;
+		};
+		nextImage.onerror = () => {
+			if (preloader === nextImage) preloader = undefined;
+		};
+		nextImage.src = item.fullSrc;
 	};
 
 	document.querySelectorAll(triggerSelector).forEach((button) => {
@@ -42,6 +73,7 @@ const {
 	dialog?.querySelector('.previous')?.addEventListener('click', () => show(current - 1));
 	dialog?.querySelector('.next')?.addEventListener('click', () => show(current + 1));
 	dialog?.addEventListener('click', (event) => event.target === dialog && dialog.close());
+	dialog?.addEventListener('close', resetImage);
 	document.addEventListener('keydown', (event) => {
 		if (!dialog?.open) return;
 		if (event.key === 'ArrowLeft') show(current - 1);
