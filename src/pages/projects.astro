@@ -24,7 +24,7 @@ try {
 			<section class="projects-grid" aria-label="Projects">
 				{projects.map((project) => (
 					<a class="project-card" href={`/projects/${project.slug}`}>
-						{project.coverImage ? <img src={project.coverImage} alt={project.titleEn} loading="lazy" decoding="async" /> : <span class="project-cover-placeholder"></span>}
+						{project.coverImage ? <img src={project.coverImagePreviewUrl ?? project.coverImage} alt={project.titleEn} loading="lazy" decoding="async" /> : <span class="project-cover-placeholder"></span>}
 						<span class="project-meta">
 							<span class="translatable" data-en={project.titleEn} data-zh={project.titleZh}>{project.titleEn}</span>
 							<span>{[project.type, project.year].filter(Boolean).join(' — ')}</span>

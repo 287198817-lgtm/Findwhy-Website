@@ -18,13 +18,14 @@ const projectMeta = [project.type?.trim(), project.year]
 const videoItems = project.videos.map((video, index) => ({
 	type: 'video' as const,
 	url: video.src,
-	cover: video.cover,
+	cover: video.coverPreviewUrl ?? video.cover,
 	order: index,
 	number: index + 1,
 }));
-const imageItems = project.images.map((url, index) => ({
+const imageItems = project.imageMedia.map((image, index) => ({
 	type: 'image' as const,
-	url,
+	url: image.previewUrl,
+	fullUrl: image.fullUrl,
 	order: videoItems.length + index,
 	number: index + 1,
 	lightboxIndex: index,
@@ -32,7 +33,7 @@ const imageItems = project.images.map((url, index) => ({
 const mediaList = [...videoItems, ...imageItems].sort((a, b) => a.order - b.order);
 const lightboxImages = imageItems.map((image) => ({
 	kind: 'image' as const,
-	src: image.url,
+	src: image.fullUrl,
 	number: image.number,
 }));
 const columns = Array.from({ length: 4 }, (_, column) => mediaList.filter((_, index) => index % 4 === column));

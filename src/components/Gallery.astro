@@ -1,14 +1,16 @@
 ---
 import ImageLightbox from './ImageLightbox.astro';
 
-interface Item { src: string; poster?: string; number: number; kind?: 'image' | 'series'; titleZh?: string; titleEn?: string; href?: string }
+interface Item { src: string; fullSrc?: string; poster?: string; number: number; kind?: 'image' | 'series'; titleZh?: string; titleEn?: string; href?: string }
 interface Props { items: Item[]; type: 'image' | 'video'; columns?: number; seriesTitleMode?: 'localized' | 'bilingual' }
 const { items, type, columns: columnCount = 4, seriesTitleMode = 'localized' } = Astro.props;
 let lightboxIndex = 0;
 const displayItems = items.map((item) => item.kind === 'series'
 	? item
 	: { ...item, lightboxIndex: lightboxIndex++ });
-const lightboxItems = items.filter((item) => item.kind !== 'series');
+const lightboxItems = items
+	.filter((item) => item.kind !== 'series')
+	.map((item) => ({ ...item, src: item.fullSrc ?? item.src }));
 const columns = Array.from({ length: columnCount }, (_, column) => displayItems.filter((_, index) => index % columnCount === column));
 ---
 

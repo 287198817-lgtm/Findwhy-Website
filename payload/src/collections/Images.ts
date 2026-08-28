@@ -11,6 +11,16 @@ export const Images: CollectionConfig = {
     imageSizes: [
       { name: 'thumbnail', width: 480, height: 480, fit: 'inside' },
       { name: 'portfolio', width: 2500, fit: 'inside', withoutEnlargement: true },
+      {
+        name: 'card',
+        width: 1200,
+        fit: 'inside',
+        withoutEnlargement: true,
+        formatOptions: {
+          format: 'webp',
+          options: { quality: 82 },
+        },
+      },
     ],
   },
   hooks: {

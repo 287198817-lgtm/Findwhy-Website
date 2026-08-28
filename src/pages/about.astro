@@ -25,7 +25,7 @@ const serviceRows = Array.from(
 				{about.introEn.map((paragraph) => <p>{cleanIntro(paragraph)}</p>)}
 			</div>
 		</div>
-		{about.portrait && <img class="portrait" src={about.portrait} alt="Findwhy surrounded by illustration work" width="1440" height="1921" />}
+		{about.portrait && <img class="portrait" src={about.portraitPreviewUrl ?? about.portrait} alt="Findwhy surrounded by illustration work" width="1440" height="1921" />}
 	</section>
 
 	<section class="about-info">

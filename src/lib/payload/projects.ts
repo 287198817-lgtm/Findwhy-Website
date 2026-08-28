@@ -1,8 +1,5 @@
 import { payloadFetch, resolvePayloadMediaUrl } from './client';
-
-interface PayloadImage {
-	url?: string | null;
-}
+import { getImageUrls, type ImageUrls, type PayloadImage } from './media';
 
 interface PayloadVideo {
 	url?: string | null;
@@ -41,6 +38,7 @@ interface PayloadCollectionResponse<T> {
 export interface ProjectVideo {
 	src: string;
 	cover?: string;
+	coverPreviewUrl?: string;
 }
 
 export interface ProjectItem {
@@ -51,7 +49,9 @@ export interface ProjectItem {
 	descriptionEn: string;
 	services: string[];
 	coverImage?: string;
+	coverImagePreviewUrl?: string;
 	images: string[];
+	imageMedia: ImageUrls[];
 	videos: ProjectVideo[];
 	year?: number;
 	type?: string;
@@ -70,13 +70,19 @@ const mapProject = (document: PayloadProject): ProjectItem => {
 			const src = getMediaUrl(video);
 			if (!src) return null;
 			const relatedPoster = typeof video === 'object' ? video.poster : null;
+			const cover = getImageUrls(covers[index]) ?? getImageUrls(relatedPoster);
 
 			return {
 				src,
-				cover: getMediaUrl(covers[index]) ?? getMediaUrl(relatedPoster) ?? undefined,
+				cover: cover?.fullUrl,
+				coverPreviewUrl: cover?.previewUrl,
 			};
 		})
 		.filter((video): video is ProjectVideo => video !== null);
+	const coverImage = getImageUrls(document.coverImage);
+	const imageMedia = (document.images ?? [])
+		.map(getImageUrls)
+		.filter((image): image is ImageUrls => image !== null);
 
 	return {
 		slug: document.slug,
@@ -87,10 +93,10 @@ const mapProject = (document: PayloadProject): ProjectItem => {
 		services: (document.services ?? [])
 			.map((service) => service.service?.trim())
 			.filter((service): service is string => Boolean(service)),
-		coverImage: getMediaUrl(document.coverImage) ?? undefined,
-		images: (document.images ?? [])
-			.map(getMediaUrl)
-			.filter((image): image is string => Boolean(image)),
+		coverImage: coverImage?.fullUrl,
+		coverImagePreviewUrl: coverImage?.previewUrl,
+		images: imageMedia.map((image) => image.fullUrl),
+		imageMedia,
 		videos,
 		year: document.year ?? undefined,
 		type: document.type?.trim() || document.category?.trim() || undefined,

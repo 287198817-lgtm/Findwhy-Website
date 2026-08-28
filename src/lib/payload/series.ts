@@ -1,6 +1,6 @@
 import { payloadFetch, resolvePayloadMediaUrl } from './client';
+import { getImageUrls, type ImageUrls, type PayloadImage } from './media';
 
-interface PayloadImage { url?: string | null }
 interface PayloadVideo { url?: string | null; poster?: PayloadImage | number | string | null }
 interface PayloadSeries {
 	id: number | string; slug: string; title_zh: string; title_en: string;
@@ -14,10 +14,11 @@ interface PayloadSeries {
 }
 interface PayloadCollectionResponse<T> { docs: T[]; hasNextPage: boolean; nextPage: number | null }
 
-export interface SeriesVideo { src: string; poster?: string }
+export interface SeriesVideo { src: string; poster?: string; posterPreviewUrl?: string }
 export interface SeriesItem {
 	slug: string; titleZh: string; titleEn: string; descriptionZh: string; descriptionEn: string;
-	year?: number; images: string[]; videos: SeriesVideo[]; cover?: string; order: number;
+	year?: number; images: string[]; imageMedia: ImageUrls[]; videos: SeriesVideo[];
+	cover?: string; coverPreviewUrl?: string; order: number;
 }
 
 const mediaUrl = (media: PayloadImage | PayloadVideo | number | string | null | undefined) => {
@@ -27,17 +28,25 @@ const mediaUrl = (media: PayloadImage | PayloadVideo | number | string | null | 
 
 const mapSeries = (document: PayloadSeries): SeriesItem => {
 	const sourceImages = document.images?.length ? document.images : (document.gallery_images ?? []);
-	const images = sourceImages.map(mediaUrl).filter((url): url is string => Boolean(url));
+	const imageMedia = sourceImages.map(getImageUrls).filter((image): image is ImageUrls => image !== null);
+	const images = imageMedia.map((image) => image.fullUrl);
 	const videos = (document.videos ?? []).map((video) => {
 		const src = mediaUrl(video);
 		if (!src) return null;
-		return { src, poster: typeof video === 'object' ? mediaUrl(video.poster) ?? undefined : undefined };
+		const poster = typeof video === 'object' ? getImageUrls(video.poster) : null;
+		return {
+			src,
+			poster: poster?.fullUrl,
+			posterPreviewUrl: poster?.previewUrl,
+		};
 	}).filter((video): video is SeriesVideo => video !== null);
+	const cover = getImageUrls(document.cover) ?? getImageUrls(document.cover_image);
 	return {
 		slug: document.slug, titleZh: document.title_zh, titleEn: document.title_en,
 		descriptionZh: document.description_zh ?? '', descriptionEn: document.description_en ?? '',
-		year: document.year ?? undefined, images, videos,
-		cover: mediaUrl(document.cover) ?? mediaUrl(document.cover_image) ?? undefined,
+		year: document.year ?? undefined, images, imageMedia, videos,
+		cover: cover?.fullUrl,
+		coverPreviewUrl: cover?.previewUrl,
 		order: document.order ?? Number.POSITIVE_INFINITY,
 	};
 };

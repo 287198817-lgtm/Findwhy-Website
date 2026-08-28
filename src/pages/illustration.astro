@@ -15,9 +15,10 @@ console.info('[illustration] Payload illustrations loaded', {
 	})),
 });
 const illustrations = payloadIllustrations.map((entry, index) => ({
-		kind: 'image' as const,
-		src: entry.image,
-		number: index + 1,
+	kind: 'image' as const,
+	src: entry.previewUrl,
+	fullSrc: entry.fullUrl,
+	number: index + 1,
 }));
 ---
 

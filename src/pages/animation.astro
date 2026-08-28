@@ -8,7 +8,7 @@ export const prerender = false;
 const payloadAnimations = await getAnimations();
 const animations = payloadAnimations.map((entry, index) => ({
 	src: entry.video,
-	poster: entry.poster,
+	poster: entry.posterPreviewUrl ?? entry.poster,
 	number: index + 1,
 }));
 ---

@@ -1,11 +1,8 @@
-import { payloadFetch, resolvePayloadMediaUrl } from './client';
+import { payloadFetch } from './client';
+import { getImageUrls, type PayloadImage } from './media';
 
 interface PayloadTextItem {
 	text?: string | null;
-}
-
-interface PayloadImage {
-	url?: string | null;
 }
 
 interface PayloadAbout {
@@ -30,6 +27,7 @@ export interface AboutContent {
 	introZh: string[];
 	introEn: string[];
 	portrait?: string;
+	portraitPreviewUrl?: string;
 	servicesTitleZh: string;
 	servicesTitleEn: string;
 	servicesZh: string[];
@@ -66,19 +64,16 @@ const textItems = (items?: PayloadTextItem[] | null) =>
 		.map((item) => item.text?.trim())
 		.filter((text): text is string => Boolean(text));
 
-const mediaUrl = (media?: PayloadImage | number | string | null) => {
-	if (!media || typeof media !== 'object' || !media.url) return undefined;
-	return resolvePayloadMediaUrl(media.url);
-};
-
 export const getAbout = async (): Promise<AboutContent> => {
 	try {
 		const about = await payloadFetch<PayloadAbout>('/api/globals/about?depth=1');
+		const portrait = getImageUrls(about.portrait);
 
 		return {
 			introZh: textItems(about.intro_zh),
 			introEn: textItems(about.intro_en),
-			portrait: mediaUrl(about.portrait),
+			portrait: portrait?.fullUrl,
+			portraitPreviewUrl: portrait?.previewUrl,
 			servicesTitleZh: about.services_title_zh ?? '',
 			servicesTitleEn: about.services_title_en ?? '',
 			servicesZh: textItems(about.services_zh),

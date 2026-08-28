@@ -11,7 +11,7 @@ try { series = await getSeries(); }
 catch (error) { loadError = true; console.error('Unable to load Series from Payload.', error); }
 const cards = series.filter((item) => item.cover).map((item, index) => ({
 		kind: 'series' as const,
-		src: item.cover!,
+	src: item.coverPreviewUrl ?? item.cover!,
 		number: index + 1,
 		titleZh: item.titleZh,
 		titleEn: item.titleEn,

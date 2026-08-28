@@ -1,6 +1,7 @@
 import { payloadFetch, resolvePayloadMediaUrl } from './client';
+import { getImageUrls, type PayloadImage } from './media';
 
-interface PayloadMedia {
+interface PayloadMedia extends PayloadImage {
 	url?: string | null;
 }
 
@@ -23,6 +24,7 @@ export interface AnimationItem {
 	slug: string;
 	video: string;
 	poster?: string;
+	posterPreviewUrl?: string;
 	order: number;
 }
 
@@ -52,12 +54,16 @@ export const getAnimations = async (): Promise<AnimationItem[]> => {
 
 	return documents
 		.filter((document) => document.draft !== true)
-		.map((document) => ({
-			slug: document.slug,
-			video: getMediaUrl(document.video),
-			poster: getMediaUrl(document.poster) ?? undefined,
-			order: document.order ?? Number.POSITIVE_INFINITY,
-		}))
+		.map((document) => {
+			const poster = getImageUrls(document.poster);
+			return {
+				slug: document.slug,
+				video: getMediaUrl(document.video),
+				poster: poster?.fullUrl,
+				posterPreviewUrl: poster?.previewUrl,
+				order: document.order ?? Number.POSITIVE_INFINITY,
+			};
+		})
 		.filter((document): document is AnimationItem => Boolean(document.video))
 		.sort((a, b) => a.order - b.order);
 };

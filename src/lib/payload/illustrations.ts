@@ -1,8 +1,5 @@
-import { payloadFetch, resolvePayloadMediaUrl } from './client';
-
-interface PayloadImage {
-	url?: string | null;
-}
+import { payloadFetch } from './client';
+import { getImageUrls, type PayloadImage } from './media';
 
 interface PayloadIllustration {
 	id: number | string;
@@ -21,13 +18,10 @@ interface PayloadCollectionResponse<T> {
 export interface IllustrationItem {
 	slug: string;
 	image: string;
+	previewUrl: string;
+	fullUrl: string;
 	order: number;
 }
-
-const getImageUrl = (image: PayloadIllustration['image']) => {
-	if (!image || typeof image !== 'object' || !image.url) return null;
-	return resolvePayloadMediaUrl(image.url);
-};
 
 export const getIllustrations = async (): Promise<IllustrationItem[]> => {
 	const documents: PayloadIllustration[] = [];
@@ -50,11 +44,18 @@ export const getIllustrations = async (): Promise<IllustrationItem[]> => {
 
 	return documents
 		.filter((document) => document.draft !== true)
-		.map((document) => ({
-			slug: document.slug,
-			image: getImageUrl(document.image),
-			order: document.order ?? Number.POSITIVE_INFINITY,
-		}))
-		.filter((document): document is IllustrationItem => Boolean(document.image))
+		.map((document) => {
+			const image = getImageUrls(document.image);
+			if (!image) return null;
+
+			return {
+				slug: document.slug,
+				image: image.fullUrl,
+				previewUrl: image.previewUrl,
+				fullUrl: image.fullUrl,
+				order: document.order ?? Number.POSITIVE_INFINITY,
+			};
+		})
+		.filter((document): document is IllustrationItem => document !== null)
 		.sort((a, b) => a.order - b.order);
 };
