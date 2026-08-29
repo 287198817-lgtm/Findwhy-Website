@@ -49,9 +49,9 @@ try {
 		<div class="mobile-nav-panel mobile-main-panel" aria-label="Mobile navigation">
 			<div class="mobile-main-content">
 				<nav class="mobile-main-links" aria-label="Mobile main navigation">
-					{links.slice(0, 3).map((link) => <a class="translatable mobile-nav-link" href={link.href} aria-current={active === link.id ? 'page' : undefined} data-en={link.label} data-zh={link.zh}>{link.label}</a>)}
-					<button class="mobile-nav-link mobile-projects-trigger translatable" type="button" aria-controls="mobile-projects-panel" data-en="PROJECTS +" data-zh="项目 +">PROJECTS +</button>
-					{links.slice(3).map((link) => <a class="translatable mobile-nav-link" href={link.href} aria-current={active === link.id ? 'page' : undefined} data-en={link.label} data-zh={link.zh}>{link.label}</a>)}
+					{links.slice(0, 3).map((link) => <a class="mobile-nav-link" href={link.href} aria-current={active === link.id ? 'page' : undefined}><span class="mobile-nav-label translatable" data-en={link.label} data-zh={link.zh}>{link.label}</span></a>)}
+					<button class="mobile-nav-link mobile-projects-trigger" type="button" aria-controls="mobile-projects-panel"><span class="mobile-nav-label translatable" data-en="PROJECTS +" data-zh="项目 +">PROJECTS +</span></button>
+					{links.slice(3).map((link) => <a class="mobile-nav-link" href={link.href} aria-current={active === link.id ? 'page' : undefined}><span class="mobile-nav-label translatable" data-en={link.label} data-zh={link.zh}>{link.label}</span></a>)}
 				</nav>
 				<div class="language-switch mobile-language-switch" aria-label="Language">
 					<button class="language-button" type="button" data-language="en" aria-pressed="true">EN</button>
@@ -196,7 +196,7 @@ try {
 		.mobile-main-links { display: flex; flex-direction: column; align-items: center; gap: 18px; }
 		.mobile-nav-link, .mobile-projects-back, .mobile-project-link { appearance: none; border: 0; margin: 0; padding: 0; color: inherit; background: transparent; line-height: 1.2; letter-spacing: .04em; text-align: center; cursor: pointer; }
 		.mobile-nav-link { font-size: 26px; }
-		.mobile-projects-trigger { display: flex; align-items: center; justify-content: center; }
+		.mobile-nav-label { display: block; font: inherit; line-height: inherit; letter-spacing: inherit; white-space: nowrap; }
 		.mobile-nav-link[aria-current='page'] { text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 1px; }
 		.mobile-language-switch { margin-top: 52px; font-size: 17px; }
 		.mobile-projects-content { gap: 42px; }
