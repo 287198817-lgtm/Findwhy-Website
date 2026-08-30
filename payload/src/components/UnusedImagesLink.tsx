@@ -1,22 +1,11 @@
-'use client'
-
-import { Button, useConfig, useListDrawerContext } from '@payloadcms/ui'
-import type { BeforeListTableClientProps } from 'payload'
+import type { BeforeListTableServerProps } from 'payload'
 import React from 'react'
 
-export const UnusedImagesLink: React.FC<BeforeListTableClientProps> = () => {
-  const { config } = useConfig()
-  const { drawerSlug } = useListDrawerContext()
+import { getUsedImageIDs } from '../lib/mediaReferenceQueries'
+import { UnusedImagesListControl } from './UnusedImagesListControl'
 
-  if (drawerSlug) return null
+export const UnusedImagesLink: React.FC<BeforeListTableServerProps> = async ({ payload }) => {
+  const usedIDs = await getUsedImageIDs({ payload })
 
-  const adminRoute = config.routes.admin
-
-  return (
-    <div style={{ marginBottom: '20px' }}>
-      <Button buttonStyle="secondary" el="link" size="small" to={`${adminRoute}/collections/images/unused`}>
-        Unused only
-      </Button>
-    </div>
-  )
+  return <UnusedImagesListControl usedIDs={Array.from(usedIDs)} />
 }
