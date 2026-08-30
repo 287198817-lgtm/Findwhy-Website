@@ -3,39 +3,13 @@
 import { useDocumentInfo } from '@payloadcms/ui'
 import React, { useEffect, useState } from 'react'
 
-type DocumentRecord = Record<string, unknown> & { id?: number | string }
-
-type Reference = {
-  id: string
-  label: string
-  name: string
-}
-
-const relationID = (value: unknown): string | undefined => {
-  if (typeof value === 'number' || typeof value === 'string') return String(value)
-  if (value && typeof value === 'object' && 'id' in value) {
-    const id = (value as { id?: unknown }).id
-    if (typeof id === 'number' || typeof id === 'string') return String(id)
-  }
-  return undefined
-}
-
-const relationshipIncludes = (value: unknown, mediaID: string): boolean => {
-  const values = Array.isArray(value) ? value : [value]
-  return values.some((item) => relationID(item) === mediaID)
-}
-
-const displayName = (document: DocumentRecord): string => {
-  const candidates = [
-    document.title_en,
-    document.title_zh,
-    document.slug,
-    document.filename,
-    document.id,
-  ]
-
-  return String(candidates.find((candidate) => candidate !== undefined && candidate !== '') ?? 'Untitled')
-}
+import {
+  addMatches,
+  imageReferenceSources,
+  videoReferenceSources,
+  type DocumentRecord,
+  type Reference,
+} from '../lib/mediaReferences'
 
 const fetchCollection = async (collection: string): Promise<DocumentRecord[]> => {
   const documents: DocumentRecord[] = []
@@ -69,56 +43,35 @@ const fetchGlobal = async (global: string): Promise<DocumentRecord> => {
   return response.json() as Promise<DocumentRecord>
 }
 
-const addMatches = (
-  references: Reference[],
-  documents: DocumentRecord[],
-  label: string,
-  mediaID: string,
-  fields: string[],
-) => {
-  for (const document of documents) {
-    if (!fields.some((field) => relationshipIncludes(document[field], mediaID))) continue
-
-    references.push({
-      id: `${label}:${String(document.id)}`,
-      label,
-      name: displayName(document),
-    })
-  }
-}
-
 const findImageReferences = async (mediaID: string): Promise<Reference[]> => {
-  const [projects, series, illustrations, animations, videos, about] = await Promise.all([
-    fetchCollection('projects'),
-    fetchCollection('series'),
-    fetchCollection('illustrations'),
-    fetchCollection('animations'),
-    fetchCollection('videos'),
-    fetchGlobal('about'),
-  ])
+  const documentsBySource = await Promise.all(
+    imageReferenceSources.map(async (source) => ({
+      source,
+      documents:
+        source.kind === 'collection' ? await fetchCollection(source.slug) : [await fetchGlobal(source.slug)],
+    })),
+  )
   const references: Reference[] = []
 
-  addMatches(references, projects, 'Project', mediaID, ['coverImage', 'images', 'videoCover'])
-  addMatches(references, series, 'Series', mediaID, ['cover', 'images', 'cover_image', 'gallery_images'])
-  addMatches(references, illustrations, 'Illustration', mediaID, ['image'])
-  addMatches(references, animations, 'Animation', mediaID, ['poster'])
-  addMatches(references, videos, 'Video poster', mediaID, ['poster'])
-  addMatches(references, [about], 'About', mediaID, ['portrait'])
+  for (const { source, documents } of documentsBySource) {
+    addMatches(references, documents, source.label, mediaID, source.fields)
+  }
 
   return references
 }
 
 const findVideoReferences = async (mediaID: string): Promise<Reference[]> => {
-  const [projects, series, animations] = await Promise.all([
-    fetchCollection('projects'),
-    fetchCollection('series'),
-    fetchCollection('animations'),
-  ])
+  const documentsBySource = await Promise.all(
+    videoReferenceSources.map(async (source) => ({
+      source,
+      documents: await fetchCollection(source.slug),
+    })),
+  )
   const references: Reference[] = []
 
-  addMatches(references, projects, 'Project', mediaID, ['video'])
-  addMatches(references, series, 'Series', mediaID, ['videos'])
-  addMatches(references, animations, 'Animation', mediaID, ['video'])
+  for (const { source, documents } of documentsBySource) {
+    addMatches(references, documents, source.label, mediaID, source.fields)
+  }
 
   return references
 }

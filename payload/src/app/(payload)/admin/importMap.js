@@ -1,3 +1,4 @@
+import { MediaUsedByCell as MediaUsedByCell_6e8ee86e8e4d88d969fd6737a7b7456a } from '../../../components/MediaUsedByCell'
 import { MediaUsedByField as MediaUsedByField_6cb40786605171ad40dae95c7b741c85 } from '../../../components/MediaUsedByField'
 import { DirectImageUploadField as DirectImageUploadField_54bd65e4e4ca193b6e9891066cabd2fa } from '../../../components/DirectImageUploadField'
 import { IllustrationBulkUpload as IllustrationBulkUpload_d1589dfa605bbacd5be6888a75fcedb6 } from '../../../components/IllustrationBulkUpload'
@@ -16,6 +17,7 @@ import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } f
 
 /** @type import('payload').ImportMap */
 export const importMap = {
+  "/components/MediaUsedByCell#MediaUsedByCell": MediaUsedByCell_6e8ee86e8e4d88d969fd6737a7b7456a,
   "/components/MediaUsedByField#MediaUsedByField": MediaUsedByField_6cb40786605171ad40dae95c7b741c85,
   "/components/DirectImageUploadField#DirectImageUploadField": DirectImageUploadField_54bd65e4e4ca193b6e9891066cabd2fa,
   "/components/IllustrationBulkUpload#IllustrationBulkUpload": IllustrationBulkUpload_d1589dfa605bbacd5be6888a75fcedb6,

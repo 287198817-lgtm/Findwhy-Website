@@ -31,7 +31,10 @@ export const Images: CollectionConfig = {
       name: 'usedBy',
       type: 'ui',
       admin: {
-        components: { Field: '/components/MediaUsedByField#MediaUsedByField' },
+        components: {
+          Cell: '/components/MediaUsedByCell#MediaUsedByCell',
+          Field: '/components/MediaUsedByField#MediaUsedByField',
+        },
       },
     },
     { name: 'alt', type: 'text' },
