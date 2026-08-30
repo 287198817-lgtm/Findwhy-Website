@@ -1,9 +1,16 @@
-import { Button } from '@payloadcms/ui'
-import type { BeforeListTableServerProps } from 'payload'
+'use client'
+
+import { Button, useConfig, useListDrawerContext } from '@payloadcms/ui'
+import type { BeforeListTableClientProps } from 'payload'
 import React from 'react'
 
-export const UnusedImagesLink: React.FC<BeforeListTableServerProps> = ({ payload }) => {
-  const adminRoute = payload.config.routes.admin
+export const UnusedImagesLink: React.FC<BeforeListTableClientProps> = () => {
+  const { config } = useConfig()
+  const { drawerSlug } = useListDrawerContext()
+
+  if (drawerSlug) return null
+
+  const adminRoute = config.routes.admin
 
   return (
     <div style={{ marginBottom: '20px' }}>

@@ -1,6 +1,7 @@
 'use client'
 
 import { Button, useField, useListDrawer, useUploadHandlers } from '@payloadcms/ui'
+import type { ListDrawerProps } from '@payloadcms/ui'
 import type { UploadFieldClientComponent } from 'payload'
 import React, { useEffect, useId, useMemo, useState } from 'react'
 
@@ -80,9 +81,9 @@ export const ProjectGalleryUploadField: UploadFieldClientComponent = ({ path }) 
       : 'Selected images are already in this project.')
   }
 
-  const selectExisting = async ({ docID }: { docID: string }) => {
+  const selectExisting: NonNullable<ListDrawerProps['onSelect']> = async ({ doc }) => {
     try {
-      appendExisting([await loadImage(docID)])
+      appendExisting([await loadImage(doc.id)])
       closeListDrawer()
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Unable to add the selected image.')
