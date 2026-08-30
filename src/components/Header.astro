@@ -50,7 +50,7 @@ try {
 			<div class="mobile-main-content">
 				<nav class="mobile-main-links" aria-label="Mobile main navigation">
 					{links.slice(0, 3).map((link) => <a class="mobile-nav-link" href={link.href} aria-current={active === link.id ? 'page' : undefined}><span class="mobile-nav-label translatable" data-en={link.label} data-zh={link.zh}>{link.label}</span></a>)}
-					<button class="mobile-nav-link mobile-projects-trigger" type="button" aria-controls="mobile-projects-panel"><span class="mobile-nav-label translatable" data-en="PROJECTS +" data-zh="项目 +">PROJECTS +</span></button>
+					<a class="mobile-nav-link mobile-projects-trigger" href="/projects" aria-controls="mobile-projects-panel" aria-haspopup="true" aria-expanded="false"><span class="mobile-nav-label translatable" data-en="PROJECTS +" data-zh="项目 +">PROJECTS +</span></a>
 					{links.slice(3).map((link) => <a class="mobile-nav-link" href={link.href} aria-current={active === link.id ? 'page' : undefined}><span class="mobile-nav-label translatable" data-en={link.label} data-zh={link.zh}>{link.label}</span></a>)}
 				</nav>
 				<div class="language-switch mobile-language-switch" aria-label="Language">
@@ -96,7 +96,7 @@ try {
 
 	const mobileToggle = document.querySelector<HTMLButtonElement>('.mobile-menu-toggle');
 	const mobileNavigation = document.querySelector<HTMLElement>('.mobile-navigation');
-	const mobileProjectsTrigger = document.querySelector<HTMLButtonElement>('.mobile-projects-trigger');
+	const mobileProjectsTrigger = document.querySelector<HTMLAnchorElement>('.mobile-projects-trigger');
 	const mobileProjectsBack = document.querySelector<HTMLButtonElement>('.mobile-projects-back');
 	type MobileNavigationState = 'closed' | 'main' | 'projects';
 
@@ -107,6 +107,7 @@ try {
 		mobileNavigation.setAttribute('aria-hidden', String(!isOpen));
 		mobileToggle.setAttribute('aria-expanded', String(isOpen));
 		mobileToggle.setAttribute('aria-label', isOpen ? 'Close navigation' : 'Open navigation');
+		mobileProjectsTrigger?.setAttribute('aria-expanded', String(state === 'projects'));
 		document.body.classList.toggle('mobile-nav-open', isOpen);
 		if (state === 'projects') mobileProjectsBack?.focus();
 		if (state === 'main' && mobileNavigation.dataset.previousState === 'projects') mobileProjectsTrigger?.focus();
@@ -116,9 +117,12 @@ try {
 	mobileToggle?.addEventListener('click', () => {
 		setMobileNavigationState(mobileNavigation?.dataset.state === 'closed' ? 'main' : 'closed');
 	});
-	mobileProjectsTrigger?.addEventListener('click', () => setMobileNavigationState('projects'));
+	mobileProjectsTrigger?.addEventListener('click', (event) => {
+		event.preventDefault();
+		setMobileNavigationState('projects');
+	});
 	mobileProjectsBack?.addEventListener('click', () => setMobileNavigationState('main'));
-	mobileNavigation?.querySelectorAll<HTMLAnchorElement>('a').forEach((link) => {
+	mobileNavigation?.querySelectorAll<HTMLAnchorElement>('a:not(.mobile-projects-trigger)').forEach((link) => {
 		link.addEventListener('click', () => setMobileNavigationState('closed'));
 	});
 	document.addEventListener('keydown', (event) => {
