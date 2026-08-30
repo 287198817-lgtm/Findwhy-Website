@@ -1,6 +1,6 @@
 'use client'
 
-import { useField, useUploadHandlers } from '@payloadcms/ui'
+import { Button, useField, useListDrawer, useUploadHandlers } from '@payloadcms/ui'
 import type { UploadFieldClientComponent } from 'payload'
 import React, { useEffect, useId, useMemo, useState } from 'react'
 
@@ -10,6 +10,14 @@ import { sortFilesNaturally } from './clientMediaUpload'
 type ImageValue = ImageDocument | number | string
 
 const relationshipID = (value: ImageValue) => typeof value === 'object' ? value.id : value
+
+const loadImage = async (id: number | string) => {
+  const response = await fetch(`/api/images/${encodeURIComponent(String(id))}?depth=0`, {
+    credentials: 'include',
+  })
+  if (!response.ok) throw new Error(`Unable to load Image #${id}.`)
+  return response.json() as Promise<ImageDocument>
+}
 
 export const ProjectGalleryUploadField: UploadFieldClientComponent = ({ path }) => {
   const { getUploadHandler } = useUploadHandlers()
@@ -22,13 +30,16 @@ export const ProjectGalleryUploadField: UploadFieldClientComponent = ({ path }) 
   const inputID = useId()
   const ids = useMemo(() => Array.isArray(value) ? value.map(relationshipID) : [], [value])
   const idsKey = ids.map(String).join(',')
+  const [ListDrawer,, { closeDrawer: closeListDrawer, openDrawer: openListDrawer }] = useListDrawer({
+    collectionSlugs: ['images'],
+    selectedCollection: 'images',
+  })
 
   useEffect(() => {
     if (ids.length === 0) { setImages([]); return }
     if (images.length === ids.length && images.every((image, index) => String(image.id) === String(ids[index]))) return
     let cancelled = false
-    void Promise.all(ids.map((id) => fetch(`/api/images/${encodeURIComponent(String(id))}?depth=0`, { credentials: 'include' })
-      .then((response) => response.json() as Promise<ImageDocument>)))
+    void Promise.all(ids.map(loadImage))
       .then((documents) => { if (!cancelled) setImages(documents) })
       .catch(() => { if (!cancelled) setStatus('Unable to load one or more images.') })
     return () => { cancelled = true }
@@ -52,6 +63,41 @@ export const ProjectGalleryUploadField: UploadFieldClientComponent = ({ path }) 
       setStatus(`${uploaded.length} image${uploaded.length === 1 ? '' : 's'} uploaded and linked.`)
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Gallery upload failed.')
+    }
+  }
+
+  const appendExisting = (selectedImages: ImageDocument[]) => {
+    const existingIDs = new Set(ids.map(String))
+    const newImages = selectedImages
+      .filter((image, index, all) => !existingIDs.has(String(image.id))
+        && all.findIndex((candidate) => String(candidate.id) === String(image.id)) === index)
+    const combined = [...images, ...newImages]
+      .filter((image, index, all) => all.findIndex((candidate) => String(candidate.id) === String(image.id)) === index)
+    setImages(combined)
+    setValue([...ids, ...newImages.map((image) => image.id)])
+    setStatus(newImages.length > 0
+      ? `${newImages.length} existing image${newImages.length === 1 ? '' : 's'} added.`
+      : 'Selected images are already in this project.')
+  }
+
+  const selectExisting = async ({ docID }: { docID: string }) => {
+    try {
+      appendExisting([await loadImage(docID)])
+      closeListDrawer()
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Unable to add the selected image.')
+    }
+  }
+
+  const selectExistingBulk = async (selected: Map<number | string, boolean>) => {
+    const selectedIDs = [...selected]
+      .filter(([, isSelected]) => isSelected)
+      .map(([id]) => id)
+    try {
+      appendExisting(await Promise.all(selectedIDs.map(loadImage)))
+      closeListDrawer()
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Unable to add the selected images.')
     }
   }
 
@@ -92,6 +138,13 @@ export const ProjectGalleryUploadField: UploadFieldClientComponent = ({ path }) 
         if (files.length > 0) void upload(files)
         event.currentTarget.value = ''
       }} type="file" />
+      <Button buttonStyle="pill" onClick={openListDrawer} size="small">Choose Existing</Button>
+      <ListDrawer
+        allowCreate={false}
+        enableRowSelections
+        onBulkSelect={selectExistingBulk}
+        onSelect={selectExisting}
+      />
       <div aria-live="polite" style={{ color: 'var(--theme-elevation-500)', fontSize: '13px', marginTop: '8px' }}>{status}</div>
       {showError && errorMessage ? <div style={{ color: 'var(--theme-error-500)' }}>{errorMessage}</div> : null}
     </div>
