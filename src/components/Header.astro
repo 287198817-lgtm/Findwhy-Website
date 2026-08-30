@@ -188,7 +188,7 @@ try {
 		.logo { position: relative; z-index: 2; }
 		.desktop-nav { display: none; }
 		.mobile-menu-toggle { appearance: none; display: grid; place-items: center; position: relative; z-index: 2; width: 44px; height: 44px; margin: -10px -10px 0 0; border: 0; padding: 0; color: inherit; background: transparent; cursor: pointer; }
-		.mobile-menu-toggle::before, .mobile-menu-toggle::after { content: ''; position: absolute; width: 24px; height: 1px; background: #000; transition: transform .3s ease; }
+		.mobile-menu-toggle::before, .mobile-menu-toggle::after { content: ''; position: absolute; width: 24px; height: 1.5px; background: #000; transition: transform .3s ease; }
 		.mobile-menu-toggle::after { transform: rotate(90deg); }
 		.mobile-menu-toggle[aria-expanded='true']::before { transform: rotate(45deg); }
 		.mobile-menu-toggle[aria-expanded='true']::after { transform: rotate(-45deg); }
@@ -201,7 +201,7 @@ try {
 		.mobile-nav-link, .mobile-projects-back, .mobile-project-link { appearance: none; border: 0; margin: 0; padding: 0; color: inherit; background: transparent; line-height: 1.2; letter-spacing: .04em; text-align: center; cursor: pointer; }
 		.mobile-nav-link { font-size: 26px; }
 		.mobile-nav-label { display: block; font: inherit; line-height: inherit; letter-spacing: inherit; white-space: nowrap; }
-		:global(html[lang='zh-CN']) .mobile-main-links { align-items: stretch; width: fit-content; margin-inline: auto; transform: translateX(12px); }
+		:global(html[lang='zh-CN']) .mobile-main-links { align-items: stretch; width: fit-content; margin-inline: auto; transform: translateX(13px); }
 		:global(html[lang='zh-CN']) .mobile-main-links .mobile-nav-link { width: 100%; text-align: left; }
 		.mobile-nav-link[aria-current='page'] { text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 1px; }
 		.mobile-language-switch { margin-top: 52px; font-size: 17px; }
