@@ -1,11 +1,24 @@
 import type { CollectionConfig } from 'payload'
 
 import { applyImageDefaults } from '../hooks/applyImageDefaults'
+import { preventReferencedImageDelete } from '../hooks/preventReferencedImageDelete'
 
 export const Images: CollectionConfig = {
   slug: 'images',
   access: { read: () => true },
-  admin: { useAsTitle: 'filename' },
+  admin: {
+    useAsTitle: 'filename',
+    components: {
+      beforeListTable: ['/components/UnusedImagesLink#UnusedImagesLink'],
+      views: {
+        unused: {
+          Component: '/components/UnusedImagesView#UnusedImagesView',
+          exact: true,
+          path: '/unused',
+        },
+      },
+    },
+  },
   upload: {
     mimeTypes: ['image/*'],
     imageSizes: [
@@ -24,6 +37,7 @@ export const Images: CollectionConfig = {
     ],
   },
   hooks: {
+    beforeDelete: [preventReferencedImageDelete],
     beforeValidate: [applyImageDefaults],
   },
   fields: [
