@@ -201,6 +201,8 @@ try {
 		.mobile-nav-link, .mobile-projects-back, .mobile-project-link { appearance: none; border: 0; margin: 0; padding: 0; color: inherit; background: transparent; line-height: 1.2; letter-spacing: .04em; text-align: center; cursor: pointer; }
 		.mobile-nav-link { font-size: 26px; }
 		.mobile-nav-label { display: block; font: inherit; line-height: inherit; letter-spacing: inherit; white-space: nowrap; }
+		:global(html[lang='zh-CN']) .mobile-main-links { align-items: stretch; width: fit-content; margin-inline: auto; }
+		:global(html[lang='zh-CN']) .mobile-main-links .mobile-nav-link { width: 100%; text-align: left; }
 		.mobile-nav-link[aria-current='page'] { text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 1px; }
 		.mobile-language-switch { margin-top: 52px; font-size: 17px; }
 		.mobile-projects-content { gap: 42px; }
