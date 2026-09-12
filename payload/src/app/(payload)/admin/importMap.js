@@ -15,7 +15,7 @@ import { ProjectGalleryUploadField as ProjectGalleryUploadField_13651e4dfdc8f41e
 import { ProjectVideoUploadField as ProjectVideoUploadField_0233ecef9fada41e2bbd63cb6486fbf5 } from '../../../components/ProjectVideoUploadField'
 import { InlineOrderCell as InlineOrderCell_6fb1364740c19a5324d084cd3b376730 } from '../../../components/InlineOrderCell'
 import { VercelBlobClientUploadHandler as VercelBlobClientUploadHandler_16c82c5e25f430251a3e3ba57219ff4e } from '@payloadcms/storage-vercel-blob/client'
-import { S3ClientUploadHandler as S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24 } from '@payloadcms/storage-s3/client'
+import { ImagesRoutingClientUploadHandler as ImagesRoutingClientUploadHandler_07f9a7ce98d464ab8c56a6fd2975e43f } from '../../../storage/images/clientUpload'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 
 /** @type import('payload').ImportMap */
@@ -37,6 +37,6 @@ export const importMap = {
   "/components/ProjectVideoUploadField#ProjectVideoUploadField": ProjectVideoUploadField_0233ecef9fada41e2bbd63cb6486fbf5,
   "/components/InlineOrderCell#InlineOrderCell": InlineOrderCell_6fb1364740c19a5324d084cd3b376730,
   "@payloadcms/storage-vercel-blob/client#VercelBlobClientUploadHandler": VercelBlobClientUploadHandler_16c82c5e25f430251a3e3ba57219ff4e,
-  "@payloadcms/storage-s3/client#S3ClientUploadHandler": S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24,
+  "/storage/images/clientUpload#ImagesRoutingClientUploadHandler": ImagesRoutingClientUploadHandler_07f9a7ce98d464ab8c56a6fd2975e43f,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1
 }
