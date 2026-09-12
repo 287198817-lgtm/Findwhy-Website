@@ -15,9 +15,12 @@ import { Animations } from './collections/Animations'
 import { Series } from './collections/Series'
 import { Projects } from './collections/Projects'
 import { About } from './globals/About'
+import { OSSTestImages } from './collections/OSSTestImages'
+import { createOSSPhase1BStorage } from './storage/ossPrototype'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
+const enableOSSPhase1B = process.env.ENABLE_OSS_PHASE1B === 'true'
 
 export default buildConfig({
   admin: {
@@ -26,7 +29,17 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Images, Videos, WebVideos, Illustrations, Animations, Series, Projects],
+  collections: [
+    Users,
+    Images,
+    Videos,
+    WebVideos,
+    Illustrations,
+    Animations,
+    Series,
+    Projects,
+    ...(enableOSSPhase1B ? [OSSTestImages] : []),
+  ],
   globals: [About],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
@@ -50,5 +63,6 @@ export default buildConfig({
       },
       token: process.env.BLOB_READ_WRITE_TOKEN,
     }),
+    ...(enableOSSPhase1B ? [createOSSPhase1BStorage()] : []),
   ],
 })
