@@ -1,24 +1,32 @@
 import type { CollectionBeforeValidateHook } from 'payload'
 
-import {
-  createImageUploadNamespace,
-  resolveImageStorageEnvironment,
-} from './key'
+import { createImageUploadNamespace, resolveImageStorageEnvironment } from './key'
 import { isTrustedImageUploadContext } from './uploadContext'
 import type { ImageClientUploadContext } from './uploadContext'
 
-export const assignImageStorageProvider: CollectionBeforeValidateHook = ({ data, operation, originalDoc, req }) => {
+export const assignImageStorageProvider: CollectionBeforeValidateHook = ({
+  data,
+  operation,
+  originalDoc,
+  req,
+}) => {
   if (process.env.ENABLE_IMAGES_STORAGE_ROUTER !== 'true' || !data) return data
 
   const storageEnvironment = resolveImageStorageEnvironment(process.env.IMAGES_STORAGE_ENV)
   const secret = process.env.PAYLOAD_SECRET || ''
   const clientContext = req.file?.clientUploadContext
-  if (req.file && isTrustedImageUploadContext({
-    context: clientContext,
-    filename: req.file.name,
-    secret,
-    storageEnvironment,
-  })) {
+  if (
+    req.file &&
+    isTrustedImageUploadContext({
+      context: clientContext,
+      documentID:
+        operation === 'update' && originalDoc?.id != null ? String(originalDoc.id) : undefined,
+      filename: req.file.name,
+      operation: operation === 'update' ? 'replacement' : 'create',
+      secret,
+      storageEnvironment,
+    })
+  ) {
     data.storageProvider = 'aliyun-oss'
     data.prefix = (clientContext as ImageClientUploadContext).prefix
   } else if (req.file && !clientContext) {

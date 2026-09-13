@@ -3,6 +3,7 @@ import type { CollectionConfig } from 'payload'
 import { applyImageDefaults } from '../hooks/applyImageDefaults'
 import { preventReferencedImageDelete } from '../hooks/preventReferencedImageDelete'
 import { assignImageStorageProvider } from '../storage/images/assignStorageProvider'
+import { preserveCanonicalImageFilename } from '../storage/images/preserveCanonicalFilename'
 
 export const Images: CollectionConfig = {
   slug: 'images',
@@ -39,6 +40,7 @@ export const Images: CollectionConfig = {
     ],
   },
   hooks: {
+    beforeOperation: [preserveCanonicalImageFilename],
     beforeDelete: [preventReferencedImageDelete],
     beforeValidate: [assignImageStorageProvider, applyImageDefaults],
   },
