@@ -164,6 +164,7 @@ export interface User {
  */
 export interface Image {
   id: number;
+  storageProvider?: ('vercel-blob' | 'aliyun-oss') | null;
   alt?: string | null;
   metadata?: {
     caption?: string | null;
@@ -473,6 +474,7 @@ export interface UsersSelect<T extends boolean = true> {
  * via the `definition` "images_select".
  */
 export interface ImagesSelect<T extends boolean = true> {
+  storageProvider?: T;
   alt?: T;
   metadata?:
     | T

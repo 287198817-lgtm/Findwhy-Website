@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { applyImageDefaults } from '../hooks/applyImageDefaults'
 import { preventReferencedImageDelete } from '../hooks/preventReferencedImageDelete'
+import { assignImageStorageProvider } from '../storage/images/assignStorageProvider'
 
 export const Images: CollectionConfig = {
   slug: 'images',
@@ -38,9 +39,21 @@ export const Images: CollectionConfig = {
   },
   hooks: {
     beforeDelete: [preventReferencedImageDelete],
-    beforeValidate: [applyImageDefaults],
+    beforeValidate: [assignImageStorageProvider, applyImageDefaults],
   },
   fields: [
+    {
+      name: 'storageProvider',
+      type: 'select',
+      admin: {
+        hidden: true,
+        readOnly: true,
+      },
+      options: [
+        { label: 'Vercel Blob', value: 'vercel-blob' },
+        { label: 'Alibaba Cloud OSS', value: 'aliyun-oss' },
+      ],
+    },
     {
       name: 'usedBy',
       type: 'ui',

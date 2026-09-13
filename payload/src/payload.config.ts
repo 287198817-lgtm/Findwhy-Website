@@ -15,9 +15,11 @@ import { Animations } from './collections/Animations'
 import { Series } from './collections/Series'
 import { Projects } from './collections/Projects'
 import { About } from './globals/About'
+import { imagesRoutingStorage } from './storage/images/plugin'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
+const enableImagesStorageRouter = process.env.ENABLE_IMAGES_STORAGE_ROUTER === 'true'
 
 export default buildConfig({
   admin: {
@@ -44,11 +46,14 @@ export default buildConfig({
       alwaysInsertFields: true,
       clientUploads: true,
       collections: {
-        images: { disablePayloadAccessControl: true, prefix: 'images' },
+        ...(!enableImagesStorageRouter
+          ? { images: { disablePayloadAccessControl: true as const, prefix: 'images' } }
+          : {}),
         videos: { disablePayloadAccessControl: true, prefix: 'videos' },
         'web-videos': { disablePayloadAccessControl: true, prefix: 'video-web' },
       },
       token: process.env.BLOB_READ_WRITE_TOKEN,
     }),
+    ...(enableImagesStorageRouter ? [imagesRoutingStorage()] : []),
   ],
 })
