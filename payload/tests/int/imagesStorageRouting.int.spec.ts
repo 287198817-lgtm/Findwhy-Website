@@ -67,6 +67,7 @@ describe('image storage routing', () => {
   it('allows duplicate display filenames only across distinct storage namespaces', () => {
     expect(Images.upload).toMatchObject({
       filenameCompoundIndex: ['prefix', 'filename'],
+      hideRemoveFile: true,
     })
 
     const filename = '8.jpg'

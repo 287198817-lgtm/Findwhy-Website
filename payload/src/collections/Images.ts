@@ -22,6 +22,9 @@ export const Images: CollectionConfig = {
     },
   },
   upload: {
+    // Replacement is intentionally disabled because Payload client-upload replacement does not
+    // currently support this custom Images upload provider. Create/delete remain supported.
+    hideRemoveFile: true,
     filenameCompoundIndex: ['prefix', 'filename'],
     mimeTypes: ['image/*'],
     imageSizes: [
