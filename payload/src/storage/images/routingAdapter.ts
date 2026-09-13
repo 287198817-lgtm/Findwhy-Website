@@ -187,14 +187,27 @@ export const createImagesRoutingAdapter = (options: RoutingAdapterOptions): Adap
   }
 
 export const replaceImageFiles = async ({
+  cleanupNext,
   deletePrevious,
   nextFiles,
   uploadNext,
 }: {
+  cleanupNext?: () => Promise<void>
   deletePrevious: () => Promise<void>
   nextFiles: ImageStorageFile[]
   uploadNext: (file: ImageStorageFile) => Promise<void>
 }) => {
-  await Promise.all(nextFiles.map(uploadNext))
+  try {
+    await Promise.all(nextFiles.map(uploadNext))
+  } catch (cause) {
+    if (cleanupNext) {
+      try {
+        await cleanupNext()
+      } catch (cleanupCause) {
+        throw new AggregateError([cause, cleanupCause], 'Replacement upload and compensation both failed.')
+      }
+    }
+    throw cause
+  }
   await deletePrevious()
 }

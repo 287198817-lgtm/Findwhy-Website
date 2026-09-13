@@ -1,10 +1,13 @@
 import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
 import { initClientUploads, resolveSignedURLKey } from '@payloadcms/plugin-cloud-storage/utilities'
-import type { Config, PayloadRequest } from 'payload'
+import type { CollectionAfterChangeHook, Config, PayloadRequest } from 'payload'
 import { APIError, Forbidden } from 'payload'
 
 import { createAliyunOSSImageProvider } from './aliyunOSSProvider'
-import { createImagesRoutingAdapter } from './routingAdapter'
+import { createImageUploadNamespace, resolveImageStorageEnvironment } from './key'
+import { createImageStorageRouter, createImagesRoutingAdapter } from './routingAdapter'
+import { isTrustedImageUploadContext, signImageUploadContext } from './uploadContext'
+import type { ImageClientUploadContext } from './uploadContext'
 import { createVercelBlobImageProvider } from './vercelBlobProvider'
 
 const required = (name: string) => {
@@ -24,7 +27,29 @@ const readJSON = async (req: PayloadRequest) => {
   }
 }
 
+export const getSkippedPreviousNamespaceFilenames = ({
+  doc,
+  previousDoc,
+}: {
+  doc: Record<string, unknown>
+  previousDoc: Record<string, unknown>
+}) => {
+  if (previousDoc.prefix === doc.prefix) return []
+  const docSizes = (doc.sizes || {}) as Record<string, { filename?: null | string }>
+  const previousSizes = (previousDoc.sizes || {}) as Record<string, { filename?: null | string }>
+  const newFilenames = new Set<string>([
+    doc.filename,
+    ...Object.values(docSizes).map((size) => size?.filename),
+  ].filter((value): value is string => typeof value === 'string'))
+  return [
+    previousDoc.filename,
+    ...Object.values(previousSizes).map((size) => size?.filename),
+  ].filter((value): value is string => typeof value === 'string' && newFilenames.has(value))
+}
+
 export const imagesRoutingStorage = () => (incomingConfig: Config): Config => {
+  const storageEnvironment = resolveImageStorageEnvironment(required('IMAGES_STORAGE_ENV'))
+  const payloadSecret = required('PAYLOAD_SECRET')
   const oss = createAliyunOSSImageProvider({
     accessKeyId: required('ALIYUN_OSS_ACCESS_KEY_ID'),
     bucket: required('ALIYUN_OSS_BUCKET'),
@@ -35,6 +60,31 @@ export const imagesRoutingStorage = () => (incomingConfig: Config): Config => {
   })
   const blob = createVercelBlobImageProvider({ token: required('BLOB_READ_WRITE_TOKEN') })
   const collections = { images: { prefix: 'images' } }
+  const routingOptions = {
+    activeUploadProvider: 'aliyun-oss' as const,
+    providers: { 'aliyun-oss': oss, 'vercel-blob': blob },
+    readClientUpload: ({ context, filename, headers, prefix }: {
+      context: unknown
+      filename: string
+      headers?: Headers
+      prefix?: string
+    }) => {
+      if (!isTrustedImageUploadContext({
+        context,
+        filename,
+        secret: payloadSecret,
+        storageEnvironment,
+      })) {
+        throw new APIError('Unknown Images client upload provider.', 400)
+      }
+      return oss.readFile({
+        docPrefix: (context as ImageClientUploadContext).prefix || prefix,
+        filename,
+        headers,
+      })
+    },
+  }
+  const router = createImageStorageRouter(routingOptions)
 
   initClientUploads({
     clientHandler: '/storage/images/clientUpload#ImagesRoutingClientUploadHandler',
@@ -49,10 +99,11 @@ export const imagesRoutingStorage = () => (incomingConfig: Config): Config => {
         typeof body.filesize !== 'number' || body.filesize <= 0) {
         throw new APIError('Invalid Images upload request.', 400)
       }
+      const uploadNamespace = createImageUploadNamespace({ environment: storageEnvironment })
       const resolved = await resolveSignedURLKey({
         collectionPrefix: 'images',
         collectionSlug: 'images',
-        docPrefix: body.docPrefix,
+        docPrefix: uploadNamespace,
         filename: body.filename,
         req,
         useCompositePrefixes: false,
@@ -66,32 +117,56 @@ export const imagesRoutingStorage = () => (incomingConfig: Config): Config => {
       return Response.json({
         docPrefix: resolved.sanitizedDocPrefix,
         filename: resolved.sanitizedFilename,
+        signature: signImageUploadContext({
+          filename: resolved.sanitizedFilename,
+          prefix: resolved.sanitizedDocPrefix,
+          secret: payloadSecret,
+          storageEnvironment,
+        }),
+        storageEnvironment,
         url: signed.url,
       })
     },
   })
 
-  return cloudStoragePlugin({
+  const configured = cloudStoragePlugin({
     collections: {
       images: {
-        adapter: createImagesRoutingAdapter({
-          activeUploadProvider: 'aliyun-oss',
-          providers: { 'aliyun-oss': oss, 'vercel-blob': blob },
-          readClientUpload: ({ context, filename, headers, prefix }) => {
-            if (!context || typeof context !== 'object' ||
-              !('storageProvider' in context) || context.storageProvider !== 'aliyun-oss') {
-              throw new APIError('Unknown Images client upload provider.', 400)
-            }
-            const contextPrefix = 'prefix' in context && typeof context.prefix === 'string'
-              ? context.prefix
-              : prefix
-            return oss.readFile({ docPrefix: contextPrefix, filename, headers })
-          },
-        }),
+        adapter: createImagesRoutingAdapter(routingOptions),
         disablePayloadAccessControl: true,
         prefix: 'images',
       },
     },
     useCompositePrefixes: false,
   })(incomingConfig)
+
+  // Payload skips deleting a previous file when the new display filename is identical.
+  // With namespaced keys, identical filenames in different prefixes are distinct objects.
+  const deleteSkippedPreviousNamespaceFiles: CollectionAfterChangeHook = async ({
+    doc,
+    operation,
+    previousDoc,
+    req,
+  }) => {
+    if (operation !== 'update' || !req.file || !previousDoc || previousDoc.prefix === doc.prefix) return doc
+    await Promise.all(getSkippedPreviousNamespaceFilenames({ doc, previousDoc })
+      .map((filename) => router.deleteFile(previousDoc, filename)))
+    return doc
+  }
+
+  return {
+    ...configured,
+    collections: configured.collections?.map((collection) => collection.slug === 'images'
+      ? {
+        ...collection,
+        hooks: {
+          ...collection.hooks,
+          afterChange: [
+            ...(collection.hooks?.afterChange || []),
+            deleteSkippedPreviousNamespaceFiles,
+          ],
+        },
+      }
+      : collection),
+  }
 }

@@ -12,7 +12,13 @@ export const ImagesRoutingClientUploadHandler = createClientUploadHandler({
       method: 'POST',
     })
     if (!response.ok) throw new Error('Unable to authorize the OSS image upload.')
-    const result = await response.json() as { docPrefix?: string; filename?: string; url: string }
+    const result = await response.json() as {
+      docPrefix: string
+      filename?: string
+      signature: string
+      storageEnvironment: 'local' | 'preview' | 'production'
+      url: string
+    }
     if (result.filename && result.filename !== file.name) updateFilename(result.filename)
     const upload = await fetch(result.url, {
       body: file,
@@ -20,6 +26,11 @@ export const ImagesRoutingClientUploadHandler = createClientUploadHandler({
       method: 'PUT',
     })
     if (!upload.ok) throw new Error(`OSS upload failed with HTTP ${upload.status}.`)
-    return { prefix: result.docPrefix, storageProvider: 'aliyun-oss' }
+    return {
+      prefix: result.docPrefix,
+      signature: result.signature,
+      storageEnvironment: result.storageEnvironment,
+      storageProvider: 'aliyun-oss',
+    }
   },
 })

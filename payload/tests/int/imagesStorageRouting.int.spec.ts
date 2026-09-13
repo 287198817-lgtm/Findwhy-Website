@@ -8,8 +8,17 @@ import {
 } from '../../src/storage/images/routingAdapter'
 import { createAliyunOSSImageProvider } from '../../src/storage/images/aliyunOSSProvider'
 import { assignImageStorageProvider } from '../../src/storage/images/assignStorageProvider'
+import {
+  createImageUploadNamespace,
+  getImageStorageKey,
+} from '../../src/storage/images/key'
 import type { ImageStorageFile, ImageStorageProvider } from '../../src/storage/images/types'
+import {
+  isTrustedImageUploadContext,
+  signImageUploadContext,
+} from '../../src/storage/images/uploadContext'
 import { createVercelBlobImageProvider } from '../../src/storage/images/vercelBlobProvider'
+import { getSkippedPreviousNamespaceFilenames } from '../../src/storage/images/plugin'
 
 const file: ImageStorageFile = {
   buffer: Buffer.from('image'),
@@ -20,10 +29,10 @@ const file: ImageStorageFile = {
 const makeProvider = (name: ImageStorageProvider['name']) => ({
   name,
   deleteFile: vi.fn(async () => undefined),
-  generateURL: vi.fn(({ filename }: { filename: string }) =>
+  generateURL: vi.fn(({ docPrefix, filename }: { docPrefix?: null | string; filename: string }) =>
     name === 'vercel-blob'
-      ? `https://store.public.blob.vercel-storage.com/images/${filename}`
-      : `https://img.findwhy.art/images/${filename}`),
+      ? `https://store.public.blob.vercel-storage.com/${docPrefix || 'images'}/${filename}`
+      : `https://img.findwhy.art/${docPrefix || 'images'}/${filename}`),
   uploadFile: vi.fn(async () => undefined),
 }) satisfies ImageStorageProvider
 
@@ -42,6 +51,56 @@ const setup = () => {
 }
 
 describe('image storage routing', () => {
+  it('uses explicit environment and independent 128-bit upload namespaces', () => {
+    const preview = createImageUploadNamespace({
+      environment: 'preview',
+      uploadID: '0123456789abcdef0123456789abcdef',
+    })
+    const production = createImageUploadNamespace({
+      environment: 'production',
+      uploadID: '0123456789abcdef0123456789abcdef',
+    })
+    const productionSecond = createImageUploadNamespace({ environment: 'production' })
+    const productionThird = createImageUploadNamespace({ environment: 'production' })
+
+    expect(preview).toBe('images/preview/0123456789abcdef0123456789abcdef')
+    expect(production).toBe('images/production/0123456789abcdef0123456789abcdef')
+    expect(preview).not.toBe(production)
+    expect(productionSecond).not.toBe(productionThird)
+    expect(productionSecond.split('/').at(-1)).toMatch(/^[a-f\d]{32}$/)
+    expect(getImageStorageKey({ docPrefix: productionSecond, filename: '8.jpg' }))
+      .not.toBe(getImageStorageKey({ docPrefix: productionThird, filename: '8.jpg' }))
+  })
+
+  it('rejects a forged or cross-environment client upload namespace', () => {
+    const secret = 'unit-test-secret'
+    const prefix = 'images/preview/0123456789abcdef0123456789abcdef'
+    const context = {
+      prefix,
+      signature: signImageUploadContext({ filename: '8.jpg', prefix, secret, storageEnvironment: 'preview' }),
+      storageEnvironment: 'preview' as const,
+      storageProvider: 'aliyun-oss' as const,
+    }
+    expect(isTrustedImageUploadContext({ context, filename: '8.jpg', secret, storageEnvironment: 'preview' }))
+      .toBe(true)
+    expect(isTrustedImageUploadContext({ context, filename: '8.jpg', secret, storageEnvironment: 'production' }))
+      .toBe(false)
+    expect(isTrustedImageUploadContext({ context: { ...context, prefix: `${prefix}0` }, filename: '8.jpg', secret, storageEnvironment: 'preview' }))
+      .toBe(false)
+  })
+
+  it('keeps four logical files in one namespace without changing display filenames', () => {
+    const prefix = createImageUploadNamespace({
+      environment: 'production',
+      uploadID: 'fedcba9876543210fedcba9876543210',
+    })
+    const filenames = ['8.jpg', '8-329x480.jpg', '8-1200x1752.webp', '8-2500x3650.jpg']
+    const keys = filenames.map((filename) => getImageStorageKey({ docPrefix: prefix, filename }))
+    expect(keys).toEqual(filenames.map((filename) => `${prefix}/${filename}`))
+    expect(new Set(keys).size).toBe(4)
+    expect(filenames[0]).toBe('8.jpg')
+  })
+
   it('preserves the production Blob URL shape and the OSS public URL shape', () => {
     const blob = createVercelBlobImageProvider({
       token: 'vercel_blob_rw_store123_token123',
@@ -114,6 +173,19 @@ describe('image storage routing', () => {
     expect(oss.deleteFile).toHaveBeenCalledTimes(4)
   })
 
+  it('deletes only the selected document namespace when filenames match', async () => {
+    const { oss, router } = setup()
+    const prefixA = 'images/preview/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    const prefixB = 'images/preview/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+    const filenames = ['8.jpg', '8-thumb.jpg', '8-card.webp', '8-portfolio.jpg']
+    for (const filename of filenames) {
+      await router.deleteFile({ prefix: prefixA, storageProvider: 'aliyun-oss' }, filename)
+    }
+    expect(oss.deleteFile).toHaveBeenCalledTimes(4)
+    expect(oss.deleteFile).toHaveBeenCalledWith({ docPrefix: prefixA, filename: '8.jpg' })
+    expect(oss.deleteFile).not.toHaveBeenCalledWith({ docPrefix: prefixB, filename: '8.jpg' })
+  })
+
   it('does not mutate provider during metadata-only routing', () => {
     const { router } = setup()
     const doc = { storageProvider: 'vercel-blob' as const }
@@ -131,6 +203,21 @@ describe('image storage routing', () => {
     expect(events.at(-1)).toBe('delete:previous-blob')
   })
 
+  it('recognizes same display filenames as distinct files after a namespace replacement', () => {
+    const sizes = {
+      card: { filename: '8-card.webp' },
+      thumbnail: { filename: '8-thumb.jpg' },
+    }
+    expect(getSkippedPreviousNamespaceFilenames({
+      doc: { filename: '8.jpg', prefix: 'images/production/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', sizes },
+      previousDoc: { filename: '8.jpg', prefix: 'images/production/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', sizes },
+    })).toEqual(['8.jpg', '8-card.webp', '8-thumb.jpg'])
+    expect(getSkippedPreviousNamespaceFilenames({
+      doc: { filename: '8.jpg', prefix: 'images', sizes },
+      previousDoc: { filename: '8.jpg', prefix: 'images', sizes },
+    })).toEqual([])
+  })
+
   it('does not delete previous Blob files when an OSS upload fails', async () => {
     const deletePrevious = vi.fn(async () => undefined)
     await expect(replaceImageFiles({
@@ -139,6 +226,21 @@ describe('image storage routing', () => {
       deletePrevious,
     })).rejects.toThrow('upload failed')
     expect(deletePrevious).not.toHaveBeenCalled()
+  })
+
+  it('cleans the new namespace and preserves the old namespace on replacement failure', async () => {
+    const events: string[] = []
+    await expect(replaceImageFiles({
+      nextFiles: [file, { ...file, filename: 'card.webp' }],
+      uploadNext: async (next) => {
+        events.push(`upload-new:${next.filename}`)
+        if (next.filename === 'card.webp') throw new Error('partial failure')
+      },
+      cleanupNext: async () => { events.push('cleanup-new-namespace') },
+      deletePrevious: async () => { events.push('delete-old-namespace') },
+    })).rejects.toThrow('partial failure')
+    expect(events).toContain('cleanup-new-namespace')
+    expect(events).not.toContain('delete-old-namespace')
   })
 
   it('fails closed for unknown providers', async () => {
@@ -164,7 +266,11 @@ describe('image storage routing', () => {
       providers: { 'aliyun-oss': oss, 'vercel-blob': blob },
       readClientUpload: async () => new Response(null, { status: 200 }),
     })({ collection: { slug: 'images' }, prefix: 'images' } as never)
-    const data = { filename: 'original.jpg', storageProvider: 'aliyun-oss' }
+    const data = {
+      filename: 'original.jpg',
+      prefix: 'images/preview/0123456789abcdef0123456789abcdef',
+      storageProvider: 'aliyun-oss',
+    }
     const req = { context: {} } as never
 
     const first = adapter.handleUpload({ data, file: { ...file, filename: 'thumbnail.jpg' }, req } as never)
@@ -172,34 +278,54 @@ describe('image storage routing', () => {
     const results = await Promise.allSettled([first, second])
 
     expect(results.some((result) => result.status === 'rejected')).toBe(true)
-    expect(oss.deleteFile).toHaveBeenCalledWith({ docPrefix: undefined, filename: 'original.jpg' })
-    expect(oss.deleteFile).toHaveBeenCalledWith({ docPrefix: undefined, filename: 'thumbnail.jpg' })
+    expect(oss.deleteFile).toHaveBeenCalledWith({ docPrefix: data.prefix, filename: 'original.jpg' })
+    expect(oss.deleteFile).toHaveBeenCalledWith({ docPrefix: data.prefix, filename: 'thumbnail.jpg' })
     expect(blob.deleteFile).not.toHaveBeenCalled()
   })
 
   it('sets OSS ownership only from trusted upload context and preserves metadata updates', () => {
     const previousFlag = process.env.ENABLE_IMAGES_STORAGE_ROUTER
+    const previousEnvironment = process.env.IMAGES_STORAGE_ENV
+    const previousSecret = process.env.PAYLOAD_SECRET
     process.env.ENABLE_IMAGES_STORAGE_ROUTER = 'true'
+    process.env.IMAGES_STORAGE_ENV = 'preview'
+    process.env.PAYLOAD_SECRET = 'unit-test-secret'
+    const prefix = 'images/preview/0123456789abcdef0123456789abcdef'
+    const signature = signImageUploadContext({
+      filename: '8.jpg',
+      prefix,
+      secret: 'unit-test-secret',
+      storageEnvironment: 'preview',
+    })
     const uploadData = { storageProvider: 'vercel-blob' }
-    const metadataData = { alt: 'Updated', storageProvider: 'aliyun-oss' }
+    const metadataData = { alt: 'Updated', prefix: 'forged', storageProvider: 'aliyun-oss' }
     const untrustedCreate = { storageProvider: 'aliyun-oss' }
 
     assignImageStorageProvider({
       data: uploadData,
       operation: 'create',
-      req: { file: { clientUploadContext: { storageProvider: 'aliyun-oss' } } },
+      req: { file: { clientUploadContext: {
+        prefix,
+        signature,
+        storageEnvironment: 'preview',
+        storageProvider: 'aliyun-oss',
+      }, name: '8.jpg' } },
     } as never)
     assignImageStorageProvider({
       data: metadataData,
       operation: 'update',
-      originalDoc: { storageProvider: 'vercel-blob' },
+      originalDoc: { prefix: 'images', storageProvider: 'vercel-blob' },
       req: {},
     } as never)
     assignImageStorageProvider({ data: untrustedCreate, operation: 'create', req: {} } as never)
 
     expect(uploadData.storageProvider).toBe('aliyun-oss')
+    expect(uploadData).toHaveProperty('prefix', prefix)
     expect(metadataData.storageProvider).toBe('vercel-blob')
+    expect(metadataData.prefix).toBe('images')
     expect(untrustedCreate).not.toHaveProperty('storageProvider')
     process.env.ENABLE_IMAGES_STORAGE_ROUTER = previousFlag
+    process.env.IMAGES_STORAGE_ENV = previousEnvironment
+    process.env.PAYLOAD_SECRET = previousSecret
   })
 })
