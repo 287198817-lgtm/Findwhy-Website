@@ -1,5 +1,6 @@
 import {
   DeleteObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3'
@@ -31,6 +32,7 @@ export const createAliyunOSSImageProvider = (
     filename: string
     mimeType: string
   }) => Promise<SignedImageUpload>
+  cleanupNamespace: (prefix: string) => Promise<void>
   readFile: (args: {
     docPrefix?: null | string
     filename: string
@@ -56,26 +58,51 @@ export const createAliyunOSSImageProvider = (
     },
     uploadFile: async ({ docPrefix, file }) => {
       const key = getImageStorageKey({ docPrefix, filename: file.filename })
-      await client.send(new PutObjectCommand({
-        Body: file.buffer,
-        Bucket: options.bucket,
-        ContentLength: file.buffer.length,
-        ContentType: file.mimeType,
-        Key: key,
-      }))
+      await client.send(
+        new PutObjectCommand({
+          Body: file.buffer,
+          Bucket: options.bucket,
+          ContentLength: file.buffer.length,
+          ContentType: file.mimeType,
+          Key: key,
+        }),
+      )
     },
     deleteFile: async ({ docPrefix, filename }) => {
       const key = getImageStorageKey({ docPrefix, filename })
       await client.send(new DeleteObjectCommand({ Bucket: options.bucket, Key: key }))
     },
+    cleanupNamespace: async (prefix) => {
+      const normalizedPrefix = `${prefix.replace(/\/+$/, '')}/`
+      let continuationToken: string | undefined
+      do {
+        const listed = await client.send(
+          new ListObjectsV2Command({
+            Bucket: options.bucket,
+            ContinuationToken: continuationToken,
+            Prefix: normalizedPrefix,
+          }),
+        )
+        for (const object of listed.Contents || []) {
+          if (object.Key?.startsWith(normalizedPrefix)) {
+            await client.send(new DeleteObjectCommand({ Bucket: options.bucket, Key: object.Key }))
+          }
+        }
+        continuationToken = listed.IsTruncated ? listed.NextContinuationToken : undefined
+      } while (continuationToken)
+    },
     createSignedUpload: async ({ contentLength, docPrefix, filename, mimeType }) => {
       const key = getImageStorageKey({ docPrefix, filename })
-      const url = await getSignedUrl(client, new PutObjectCommand({
-        Bucket: options.bucket,
-        ContentLength: contentLength,
-        ContentType: mimeType,
-        Key: key,
-      }), { expiresIn: 600 })
+      const url = await getSignedUrl(
+        client,
+        new PutObjectCommand({
+          Bucket: options.bucket,
+          ContentLength: contentLength,
+          ContentType: mimeType,
+          Key: key,
+        }),
+        { expiresIn: 600 },
+      )
       return { key, url }
     },
     readFile: ({ docPrefix, filename, headers }) => {

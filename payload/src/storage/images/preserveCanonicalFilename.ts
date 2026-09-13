@@ -19,16 +19,16 @@ export const preserveCanonicalImageFilename: CollectionBeforeOperationHook = ({
   }
 
   const documentID = 'id' in args && args.id != null ? String(args.id) : undefined
+  const context = req.file.clientUploadContext as { filename?: unknown; oldPrefix?: unknown }
+  const canonicalFilename = typeof context?.filename === 'string' ? context.filename : undefined
   if (
     !documentID ||
+    !canonicalFilename ||
     !isTrustedImageUploadContext({
-      context: req.file.clientUploadContext,
+      context,
       documentID,
-      filename: req.file.name,
-      oldPrefix:
-        typeof (req.file.clientUploadContext as { oldPrefix?: unknown })?.oldPrefix === 'string'
-          ? (req.file.clientUploadContext as { oldPrefix: string }).oldPrefix
-          : undefined,
+      filename: canonicalFilename,
+      oldPrefix: typeof context.oldPrefix === 'string' ? context.oldPrefix : undefined,
       operation: 'replacement',
       secret: process.env.PAYLOAD_SECRET || '',
       storageEnvironment: resolveImageStorageEnvironment(process.env.IMAGES_STORAGE_ENV),
@@ -36,5 +36,6 @@ export const preserveCanonicalImageFilename: CollectionBeforeOperationHook = ({
   )
     return args
 
+  req.file.name = canonicalFilename
   return { ...args, overwriteExistingFiles: true }
 }

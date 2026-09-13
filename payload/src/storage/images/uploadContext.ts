@@ -5,6 +5,9 @@ import { isImageUploadNamespace } from './key'
 
 export type ImageClientUploadContext = {
   documentID?: string
+  expiresAt: number
+  filename: string
+  issuedAt: number
   oldPrefix?: string
   operation: 'create' | 'replacement'
   prefix: string
@@ -15,22 +18,31 @@ export type ImageClientUploadContext = {
 
 const signaturePayload = ({
   documentID,
+  expiresAt,
   filename,
+  issuedAt,
   oldPrefix,
   operation,
   prefix,
   storageEnvironment,
 }: Pick<
   ImageClientUploadContext,
-  'documentID' | 'oldPrefix' | 'operation' | 'prefix' | 'storageEnvironment'
-> & {
-  filename: string
-}) =>
-  `${storageEnvironment}\0aliyun-oss\0${operation}\0${documentID || ''}\0${oldPrefix || ''}\0${prefix}\0${filename}`
+  | 'documentID'
+  | 'expiresAt'
+  | 'filename'
+  | 'issuedAt'
+  | 'oldPrefix'
+  | 'operation'
+  | 'prefix'
+  | 'storageEnvironment'
+>) =>
+  `${storageEnvironment}\0aliyun-oss\0${operation}\0${documentID || ''}\0${oldPrefix || ''}\0${prefix}\0${filename}\0${issuedAt}\0${expiresAt}`
 
 export const signImageUploadContext = ({
   documentID,
+  expiresAt,
   filename,
+  issuedAt,
   oldPrefix,
   operation,
   prefix,
@@ -38,14 +50,29 @@ export const signImageUploadContext = ({
   storageEnvironment,
 }: Pick<
   ImageClientUploadContext,
-  'documentID' | 'oldPrefix' | 'operation' | 'prefix' | 'storageEnvironment'
+  | 'documentID'
+  | 'expiresAt'
+  | 'filename'
+  | 'issuedAt'
+  | 'oldPrefix'
+  | 'operation'
+  | 'prefix'
+  | 'storageEnvironment'
 > & {
-  filename: string
   secret: string
 }) =>
   createHmac('sha256', secret)
     .update(
-      signaturePayload({ documentID, filename, oldPrefix, operation, prefix, storageEnvironment }),
+      signaturePayload({
+        documentID,
+        expiresAt,
+        filename,
+        issuedAt,
+        oldPrefix,
+        operation,
+        prefix,
+        storageEnvironment,
+      }),
     )
     .digest('hex')
 
@@ -53,18 +80,22 @@ export const isTrustedImageUploadContext = ({
   context,
   documentID,
   filename,
+  now = Date.now(),
   oldPrefix,
   operation,
   secret,
   storageEnvironment,
+  validateExpiration = true,
 }: {
   context: unknown
   documentID?: string
   filename: string
+  now?: number
   oldPrefix?: string
   operation?: ImageClientUploadContext['operation']
   secret: string
   storageEnvironment: ImageStorageEnvironment
+  validateExpiration?: boolean
 }): boolean => {
   if (!context || typeof context !== 'object') return false
   const candidate = context as Partial<ImageClientUploadContext>
@@ -72,6 +103,10 @@ export const isTrustedImageUploadContext = ({
   if (
     candidate.storageProvider !== 'aliyun-oss' ||
     candidate.storageEnvironment !== storageEnvironment ||
+    candidate.filename !== filename ||
+    typeof candidate.issuedAt !== 'number' ||
+    typeof candidate.expiresAt !== 'number' ||
+    (validateExpiration && (candidate.issuedAt > now || candidate.expiresAt <= now)) ||
     (candidate.operation !== 'create' && candidate.operation !== 'replacement') ||
     (operation && candidate.operation !== operation) ||
     (typeof documentID === 'string' && candidate.documentID !== documentID) ||
@@ -88,7 +123,9 @@ export const isTrustedImageUploadContext = ({
     return false
   const expected = signImageUploadContext({
     documentID: candidate.documentID,
+    expiresAt: candidate.expiresAt,
     filename,
+    issuedAt: candidate.issuedAt,
     oldPrefix: candidate.oldPrefix,
     operation: candidate.operation,
     prefix,

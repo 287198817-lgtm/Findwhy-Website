@@ -60,7 +60,9 @@ export const ImagesRoutingClientUploadHandler = ({
         const result = (await response.json()) as {
           docPrefix: string
           documentID?: string
+          expiresAt: number
           filename?: string
+          issuedAt: number
           oldPrefix?: string
           operation: 'create' | 'replacement'
           signature: string
@@ -76,6 +78,9 @@ export const ImagesRoutingClientUploadHandler = ({
         if (!upload.ok) throw new Error(`OSS upload failed with HTTP ${upload.status}.`)
         return {
           documentID: result.documentID,
+          expiresAt: result.expiresAt,
+          filename: result.filename || file.name,
+          issuedAt: result.issuedAt,
           oldPrefix: result.oldPrefix,
           operation: result.operation,
           prefix: result.docPrefix,

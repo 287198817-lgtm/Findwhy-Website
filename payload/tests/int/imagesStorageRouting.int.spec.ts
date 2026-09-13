@@ -18,13 +18,22 @@ import {
   signImageUploadContext,
 } from '../../src/storage/images/uploadContext'
 import { createVercelBlobImageProvider } from '../../src/storage/images/vercelBlobProvider'
-import { getSkippedPreviousNamespaceFilenames } from '../../src/storage/images/plugin'
+import {
+  compensateFailedImageReplacement,
+  getSkippedPreviousNamespaceFilenames,
+  IMAGE_UPLOAD_CONTEXT_TTL_MS,
+} from '../../src/storage/images/plugin'
 import { preserveCanonicalImageFilename } from '../../src/storage/images/preserveCanonicalFilename'
 
 const file: ImageStorageFile = {
   buffer: Buffer.from('image'),
   filename: 'original.jpg',
   mimeType: 'image/jpeg',
+}
+
+const validContextTime = {
+  expiresAt: Date.now() + 30 * 60 * 1000,
+  issuedAt: Date.now() - 1000,
 }
 
 const makeProvider = (name: ImageStorageProvider['name']) =>
@@ -125,9 +134,12 @@ describe('image storage routing', () => {
     const secret = 'unit-test-secret'
     const prefix = 'images/preview/0123456789abcdef0123456789abcdef'
     const context = {
+      ...validContextTime,
+      filename: '8.jpg',
       operation: 'create' as const,
       prefix,
       signature: signImageUploadContext({
+        ...validContextTime,
         filename: '8.jpg',
         operation: 'create',
         prefix,
@@ -409,6 +421,7 @@ describe('image storage routing', () => {
     process.env.PAYLOAD_SECRET = 'unit-test-secret'
     const prefix = 'images/preview/0123456789abcdef0123456789abcdef'
     const signature = signImageUploadContext({
+      ...validContextTime,
       filename: '8.jpg',
       operation: 'create',
       prefix,
@@ -425,6 +438,8 @@ describe('image storage routing', () => {
       req: {
         file: {
           clientUploadContext: {
+            ...validContextTime,
+            filename: '8.jpg',
             operation: 'create',
             prefix,
             signature,
@@ -458,11 +473,14 @@ describe('image storage routing', () => {
     const oldPrefix = 'images/preview/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
     const prefix = 'images/preview/0123456789abcdef0123456789abcdef'
     const context = {
+      ...validContextTime,
       documentID: '123',
+      filename: '8.jpg',
       oldPrefix,
       operation: 'replacement' as const,
       prefix,
       signature: signImageUploadContext({
+        ...validContextTime,
         documentID: '123',
         filename: '8.jpg',
         oldPrefix,
@@ -530,11 +548,14 @@ describe('image storage routing', () => {
     const oldPrefix = 'images/preview/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
     const prefix = 'images/preview/0123456789abcdef0123456789abcdef'
     const clientUploadContext = {
+      ...validContextTime,
       documentID: '123',
+      filename: '8.jpg',
       oldPrefix,
       operation: 'replacement' as const,
       prefix,
       signature: signImageUploadContext({
+        ...validContextTime,
         documentID: '123',
         filename: '8.jpg',
         oldPrefix,
@@ -585,9 +606,12 @@ describe('image storage routing', () => {
     })
     const context = {
       ...target,
+      ...validContextTime,
+      filename: '8.jpg',
       prefix: newPrefix,
       signature: signImageUploadContext({
         ...target,
+        ...validContextTime,
         filename: '8.jpg',
         prefix: newPrefix,
         secret: 'unit-test-secret',
@@ -633,9 +657,12 @@ describe('image storage routing', () => {
         })
         const context = {
           ...target,
+          ...validContextTime,
+          filename,
           prefix: newPrefix,
           signature: signImageUploadContext({
             ...target,
+            ...validContextTime,
             filename,
             prefix: newPrefix,
             secret: 'unit-test-secret',
@@ -661,6 +688,99 @@ describe('image storage routing', () => {
       process.env.PAYLOAD_SECRET = previousSecret
     },
   )
+
+  it('accepts delayed saves within the context TTL and rejects expired contexts', () => {
+    const issuedAt = 1_000_000
+    const expiresAt = issuedAt + IMAGE_UPLOAD_CONTEXT_TTL_MS
+    const oldPrefix = 'images/preview/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    const prefix = 'images/preview/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+    const context = {
+      documentID: '123',
+      expiresAt,
+      filename: '8.jpg',
+      issuedAt,
+      oldPrefix,
+      operation: 'replacement' as const,
+      prefix,
+      signature: signImageUploadContext({
+        documentID: '123',
+        expiresAt,
+        filename: '8.jpg',
+        issuedAt,
+        oldPrefix,
+        operation: 'replacement',
+        prefix,
+        secret: 'unit-test-secret',
+        storageEnvironment: 'preview',
+      }),
+      storageEnvironment: 'preview' as const,
+      storageProvider: 'aliyun-oss' as const,
+    }
+    const validate = (now: number) =>
+      isTrustedImageUploadContext({
+        context,
+        documentID: '123',
+        filename: '8.jpg',
+        now,
+        oldPrefix,
+        operation: 'replacement',
+        secret: 'unit-test-secret',
+        storageEnvironment: 'preview',
+      })
+
+    expect(validate(issuedAt + 20 * 60 * 1000)).toBe(true)
+    expect(validate(expiresAt)).toBe(false)
+  })
+
+  it('compensates a signed PATCH failure without deleting the previous namespace', async () => {
+    const oldPrefix = 'images/preview/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    const prefix = 'images/preview/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+    const cleanupNamespace = vi.fn(async () => undefined)
+    const context = {
+      ...validContextTime,
+      documentID: '123',
+      filename: '8.jpg',
+      oldPrefix,
+      operation: 'replacement' as const,
+      prefix,
+      signature: signImageUploadContext({
+        ...validContextTime,
+        documentID: '123',
+        filename: '8.jpg',
+        oldPrefix,
+        operation: 'replacement',
+        prefix,
+        secret: 'unit-test-secret',
+        storageEnvironment: 'preview',
+      }),
+      storageEnvironment: 'preview' as const,
+      storageProvider: 'aliyun-oss' as const,
+    }
+
+    await expect(
+      compensateFailedImageReplacement({
+        cleanupNamespace,
+        context,
+        currentPrefix: oldPrefix,
+        payloadSecret: 'unit-test-secret',
+        storageEnvironment: 'preview',
+      }),
+    ).resolves.toBe(true)
+    expect(cleanupNamespace).toHaveBeenCalledExactlyOnceWith(prefix)
+    expect(cleanupNamespace).not.toHaveBeenCalledWith(oldPrefix)
+
+    cleanupNamespace.mockClear()
+    await expect(
+      compensateFailedImageReplacement({
+        cleanupNamespace,
+        context,
+        currentPrefix: prefix,
+        payloadSecret: 'unit-test-secret',
+        storageEnvironment: 'preview',
+      }),
+    ).resolves.toBe(false)
+    expect(cleanupNamespace).not.toHaveBeenCalled()
+  })
 
   it.each(['8.jpg', 'new.jpg'])(
     'keeps %s as the canonical document and original-object filename during replacement',

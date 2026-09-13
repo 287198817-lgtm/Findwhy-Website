@@ -1,6 +1,11 @@
 import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
 import { initClientUploads, resolveSignedURLKey } from '@payloadcms/plugin-cloud-storage/utilities'
-import type { CollectionAfterChangeHook, Config, PayloadRequest } from 'payload'
+import type {
+  CollectionAfterChangeHook,
+  CollectionAfterErrorHook,
+  Config,
+  PayloadRequest,
+} from 'payload'
 import { APIError, Forbidden } from 'payload'
 
 import { createAliyunOSSImageProvider } from './aliyunOSSProvider'
@@ -9,6 +14,46 @@ import { createImageStorageRouter, createImagesRoutingAdapter } from './routingA
 import { isTrustedImageUploadContext, signImageUploadContext } from './uploadContext'
 import type { ImageClientUploadContext } from './uploadContext'
 import { createVercelBlobImageProvider } from './vercelBlobProvider'
+
+export const IMAGE_UPLOAD_CONTEXT_TTL_MS = 30 * 60 * 1000
+
+export const compensateFailedImageReplacement = async ({
+  cleanupNamespace,
+  context,
+  currentPrefix,
+  payloadSecret,
+  storageEnvironment,
+}: {
+  cleanupNamespace: (prefix: string) => Promise<void>
+  context: unknown
+  currentPrefix?: null | string
+  payloadSecret: string
+  storageEnvironment: ReturnType<typeof resolveImageStorageEnvironment>
+}) => {
+  const candidate = context as Partial<ImageClientUploadContext> | undefined
+  if (
+    !candidate ||
+    candidate.operation !== 'replacement' ||
+    typeof candidate.documentID !== 'string' ||
+    typeof candidate.filename !== 'string' ||
+    typeof candidate.oldPrefix !== 'string' ||
+    !isTrustedImageUploadContext({
+      context: candidate,
+      documentID: candidate.documentID,
+      filename: candidate.filename,
+      oldPrefix: candidate.oldPrefix,
+      operation: 'replacement',
+      secret: payloadSecret,
+      storageEnvironment,
+      validateExpiration: false,
+    }) ||
+    currentPrefix === candidate.prefix
+  )
+    return false
+
+  await cleanupNamespace(candidate.prefix!)
+  return true
+}
 
 const required = (name: string) => {
   const value = process.env[name]
@@ -155,12 +200,16 @@ export const imagesRoutingStorage =
           filename: resolved.sanitizedFilename,
           mimeType: body.mimeType,
         })
+        const issuedAt = Date.now()
+        const expiresAt = issuedAt + IMAGE_UPLOAD_CONTEXT_TTL_MS
         return Response.json({
           docPrefix: resolved.sanitizedDocPrefix,
           filename: resolved.sanitizedFilename,
           signature: signImageUploadContext({
             documentID: body.documentID,
+            expiresAt,
             filename: resolved.sanitizedFilename,
+            issuedAt,
             oldPrefix: body.oldPrefix,
             operation: body.operation,
             prefix: resolved.sanitizedDocPrefix,
@@ -169,6 +218,8 @@ export const imagesRoutingStorage =
           }),
           storageEnvironment,
           documentID: body.documentID,
+          expiresAt,
+          issuedAt,
           oldPrefix: body.oldPrefix,
           operation: body.operation,
           url: signed.url,
@@ -205,6 +256,25 @@ export const imagesRoutingStorage =
       return doc
     }
 
+    const compensateFailedClientReplacement: CollectionAfterErrorHook = async ({ req }) => {
+      const context = req.file?.clientUploadContext as Partial<ImageClientUploadContext> | undefined
+      if (!context || typeof context.documentID !== 'string') return
+
+      const current = await req.payload.findByID({
+        collection: 'images',
+        id: context.documentID,
+        overrideAccess: true,
+        req,
+      })
+      await compensateFailedImageReplacement({
+        cleanupNamespace: oss.cleanupNamespace,
+        context,
+        currentPrefix: current.prefix,
+        payloadSecret,
+        storageEnvironment,
+      })
+    }
+
     return {
       ...configured,
       collections: configured.collections?.map((collection) =>
@@ -213,6 +283,10 @@ export const imagesRoutingStorage =
               ...collection,
               hooks: {
                 ...collection.hooks,
+                afterError: [
+                  ...(collection.hooks?.afterError || []),
+                  compensateFailedClientReplacement,
+                ],
                 afterChange: [
                   ...(collection.hooks?.afterChange || []),
                   deleteSkippedPreviousNamespaceFiles,
