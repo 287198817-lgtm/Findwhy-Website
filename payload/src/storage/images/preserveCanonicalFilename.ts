@@ -25,6 +25,10 @@ export const preserveCanonicalImageFilename: CollectionBeforeOperationHook = ({
       context: req.file.clientUploadContext,
       documentID,
       filename: req.file.name,
+      oldPrefix:
+        typeof (req.file.clientUploadContext as { oldPrefix?: unknown })?.oldPrefix === 'string'
+          ? (req.file.clientUploadContext as { oldPrefix: string }).oldPrefix
+          : undefined,
       operation: 'replacement',
       secret: process.env.PAYLOAD_SECRET || '',
       storageEnvironment: resolveImageStorageEnvironment(process.env.IMAGES_STORAGE_ENV),

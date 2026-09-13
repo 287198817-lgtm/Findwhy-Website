@@ -1,4 +1,5 @@
 import type { CollectionBeforeValidateHook } from 'payload'
+import { APIError } from 'payload'
 
 import { createImageUploadNamespace, resolveImageStorageEnvironment } from './key'
 import { isTrustedImageUploadContext } from './uploadContext'
@@ -22,6 +23,10 @@ export const assignImageStorageProvider: CollectionBeforeValidateHook = ({
       documentID:
         operation === 'update' && originalDoc?.id != null ? String(originalDoc.id) : undefined,
       filename: req.file.name,
+      oldPrefix:
+        operation === 'update' && typeof originalDoc?.prefix === 'string'
+          ? originalDoc.prefix
+          : undefined,
       operation: operation === 'update' ? 'replacement' : 'create',
       secret,
       storageEnvironment,
@@ -29,6 +34,8 @@ export const assignImageStorageProvider: CollectionBeforeValidateHook = ({
   ) {
     data.storageProvider = 'aliyun-oss'
     data.prefix = (clientContext as ImageClientUploadContext).prefix
+  } else if (req.file && clientContext) {
+    throw new APIError('Invalid or stale Images client upload context.', 400)
   } else if (req.file && !clientContext) {
     // Server-side uploads receive the same collision-safe namespace.
     data.storageProvider = 'aliyun-oss'

@@ -25,6 +25,7 @@ const readJSON = async (req: PayloadRequest) => {
     filesize?: number
     mimeType?: string
     documentID?: string
+    oldPrefix?: string
     operation?: 'create' | 'replacement'
   }
 }
@@ -115,11 +116,31 @@ export const imagesRoutingStorage =
           body.filesize <= 0 ||
           (body.operation !== 'create' && body.operation !== 'replacement') ||
           (body.operation === 'create' && body.documentID !== undefined) ||
-          (body.operation === 'replacement' && !body.documentID)
+          (body.operation === 'create' && body.oldPrefix !== undefined) ||
+          (body.operation === 'replacement' && (!body.documentID || !body.oldPrefix))
         ) {
           throw new APIError('Invalid Images upload request.', 400)
         }
+        if (body.operation === 'replacement') {
+          const oldPrefix = body.oldPrefix!
+          const existing = await req.payload.findByID({
+            collection: 'images',
+            id: body.documentID!,
+            overrideAccess: false,
+            req,
+          })
+          if (
+            existing.storageProvider !== 'aliyun-oss' ||
+            existing.prefix !== oldPrefix ||
+            !oldPrefix.startsWith(`images/${storageEnvironment}/`)
+          ) {
+            throw new APIError('Invalid Images replacement source namespace.', 400)
+          }
+        }
         const uploadNamespace = createImageUploadNamespace({ environment: storageEnvironment })
+        if (body.operation === 'replacement' && uploadNamespace === body.oldPrefix) {
+          throw new APIError('Images replacement must rotate its storage namespace.', 500)
+        }
         const resolved = await resolveSignedURLKey({
           collectionPrefix: 'images',
           collectionSlug: 'images',
@@ -140,6 +161,7 @@ export const imagesRoutingStorage =
           signature: signImageUploadContext({
             documentID: body.documentID,
             filename: resolved.sanitizedFilename,
+            oldPrefix: body.oldPrefix,
             operation: body.operation,
             prefix: resolved.sanitizedDocPrefix,
             secret: payloadSecret,
@@ -147,6 +169,7 @@ export const imagesRoutingStorage =
           }),
           storageEnvironment,
           documentID: body.documentID,
+          oldPrefix: body.oldPrefix,
           operation: body.operation,
           url: signed.url,
         })

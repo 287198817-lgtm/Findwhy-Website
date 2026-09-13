@@ -10,6 +10,7 @@ import {
 } from '../../src/storage/images/routingAdapter'
 import { createAliyunOSSImageProvider } from '../../src/storage/images/aliyunOSSProvider'
 import { assignImageStorageProvider } from '../../src/storage/images/assignStorageProvider'
+import { resolveImageClientUploadTarget } from '../../src/storage/images/clientUploadTarget'
 import { createImageUploadNamespace, getImageStorageKey } from '../../src/storage/images/key'
 import type { ImageStorageFile, ImageStorageProvider } from '../../src/storage/images/types'
 import {
@@ -454,14 +455,17 @@ describe('image storage routing', () => {
 
   it('binds replacement upload context to operation and document identity', () => {
     const secret = 'unit-test-secret'
+    const oldPrefix = 'images/preview/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
     const prefix = 'images/preview/0123456789abcdef0123456789abcdef'
     const context = {
       documentID: '123',
+      oldPrefix,
       operation: 'replacement' as const,
       prefix,
       signature: signImageUploadContext({
         documentID: '123',
         filename: '8.jpg',
+        oldPrefix,
         operation: 'replacement',
         prefix,
         secret,
@@ -476,6 +480,7 @@ describe('image storage routing', () => {
         context,
         documentID: '123',
         filename: '8.jpg',
+        oldPrefix,
         operation: 'replacement',
         secret,
         storageEnvironment: 'preview',
@@ -486,6 +491,7 @@ describe('image storage routing', () => {
         context,
         documentID: '124',
         filename: '8.jpg',
+        oldPrefix,
         operation: 'replacement',
         secret,
         storageEnvironment: 'preview',
@@ -501,6 +507,17 @@ describe('image storage routing', () => {
         storageEnvironment: 'preview',
       }),
     ).toBe(false)
+    expect(
+      isTrustedImageUploadContext({
+        context: { ...context, prefix: oldPrefix },
+        documentID: '123',
+        filename: '8.jpg',
+        oldPrefix,
+        operation: 'replacement',
+        secret,
+        storageEnvironment: 'preview',
+      }),
+    ).toBe(false)
   })
 
   it('preserves the signed canonical filename only for the matching replacement document', () => {
@@ -510,14 +527,17 @@ describe('image storage routing', () => {
     process.env.ENABLE_IMAGES_STORAGE_ROUTER = 'true'
     process.env.IMAGES_STORAGE_ENV = 'preview'
     process.env.PAYLOAD_SECRET = 'unit-test-secret'
+    const oldPrefix = 'images/preview/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
     const prefix = 'images/preview/0123456789abcdef0123456789abcdef'
     const clientUploadContext = {
       documentID: '123',
+      oldPrefix,
       operation: 'replacement' as const,
       prefix,
       signature: signImageUploadContext({
         documentID: '123',
         filename: '8.jpg',
+        oldPrefix,
         operation: 'replacement',
         prefix,
         secret: 'unit-test-secret',
@@ -549,6 +569,98 @@ describe('image storage routing', () => {
     process.env.IMAGES_STORAGE_ENV = previousEnvironment
     process.env.PAYLOAD_SECRET = previousSecret
   })
+
+  it('replaces stale form prefix with the signed fresh namespace in a realistic update hook', () => {
+    const previousFlag = process.env.ENABLE_IMAGES_STORAGE_ROUTER
+    const previousEnvironment = process.env.IMAGES_STORAGE_ENV
+    const previousSecret = process.env.PAYLOAD_SECRET
+    process.env.ENABLE_IMAGES_STORAGE_ROUTER = 'true'
+    process.env.IMAGES_STORAGE_ENV = 'preview'
+    process.env.PAYLOAD_SECRET = 'unit-test-secret'
+    const oldPrefix = 'images/preview/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    const newPrefix = 'images/preview/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+    const target = resolveImageClientUploadTarget({
+      data: { id: 123, prefix: oldPrefix },
+      docPrefix: oldPrefix,
+    })
+    const context = {
+      ...target,
+      prefix: newPrefix,
+      signature: signImageUploadContext({
+        ...target,
+        filename: '8.jpg',
+        prefix: newPrefix,
+        secret: 'unit-test-secret',
+        storageEnvironment: 'preview',
+      }),
+      storageEnvironment: 'preview' as const,
+      storageProvider: 'aliyun-oss' as const,
+    }
+    const data = { filename: '8.jpg', prefix: oldPrefix }
+
+    assignImageStorageProvider({
+      data,
+      operation: 'update',
+      originalDoc: { id: 123, prefix: oldPrefix, storageProvider: 'aliyun-oss' },
+      req: { file: { clientUploadContext: context, name: '8.jpg' } },
+    } as never)
+
+    expect(target).toEqual({ documentID: '123', oldPrefix, operation: 'replacement' })
+    expect(data.prefix).toBe(newPrefix)
+    process.env.ENABLE_IMAGES_STORAGE_ROUTER = previousFlag
+    process.env.IMAGES_STORAGE_ENV = previousEnvironment
+    process.env.PAYLOAD_SECRET = previousSecret
+  })
+
+  it.each(['8.jpg', 'new.jpg'])(
+    'rotates the namespace for a realistic %s replacement while old prefix remains in form data',
+    (filename) => {
+      const previousFlag = process.env.ENABLE_IMAGES_STORAGE_ROUTER
+      const previousEnvironment = process.env.IMAGES_STORAGE_ENV
+      const previousSecret = process.env.PAYLOAD_SECRET
+      process.env.ENABLE_IMAGES_STORAGE_ROUTER = 'true'
+      process.env.IMAGES_STORAGE_ENV = 'preview'
+      process.env.PAYLOAD_SECRET = 'unit-test-secret'
+      let oldPrefix = 'images/preview/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+
+      for (const newPrefix of [
+        'images/preview/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        'images/preview/cccccccccccccccccccccccccccccccc',
+      ]) {
+        const target = resolveImageClientUploadTarget({
+          data: { id: 123, prefix: oldPrefix },
+          docPrefix: oldPrefix,
+        })
+        const context = {
+          ...target,
+          prefix: newPrefix,
+          signature: signImageUploadContext({
+            ...target,
+            filename,
+            prefix: newPrefix,
+            secret: 'unit-test-secret',
+            storageEnvironment: 'preview',
+          }),
+          storageEnvironment: 'preview' as const,
+          storageProvider: 'aliyun-oss' as const,
+        }
+        const data = { filename, prefix: oldPrefix }
+        assignImageStorageProvider({
+          data,
+          operation: 'update',
+          originalDoc: { id: 123, prefix: oldPrefix, storageProvider: 'aliyun-oss' },
+          req: { file: { clientUploadContext: context, name: filename } },
+        } as never)
+        expect(data.prefix).toBe(newPrefix)
+        expect(data.prefix).not.toBe(oldPrefix)
+        oldPrefix = newPrefix
+      }
+
+      process.env.ENABLE_IMAGES_STORAGE_ROUTER = previousFlag
+      process.env.IMAGES_STORAGE_ENV = previousEnvironment
+      process.env.PAYLOAD_SECRET = previousSecret
+    },
+  )
 
   it.each(['8.jpg', 'new.jpg'])(
     'keeps %s as the canonical document and original-object filename during replacement',

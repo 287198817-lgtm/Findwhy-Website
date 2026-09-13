@@ -6,6 +6,8 @@ import { formatAdminURL } from 'payload/shared'
 import type { ReactNode } from 'react'
 import { Fragment, useEffect } from 'react'
 
+import { resolveImageClientUploadTarget } from './clientUploadTarget'
+
 type Props = {
   children: ReactNode
   collectionSlug: UploadCollectionSlug
@@ -19,7 +21,7 @@ export const ImagesRoutingClientUploadHandler = ({
   enabled,
   serverHandlerPath,
 }: Props) => {
-  const { id } = useDocumentInfo()
+  const { data, id, savedDocumentData } = useDocumentInfo()
   const { setUploadHandler } = useUploadHandlers()
   const {
     config: {
@@ -33,8 +35,12 @@ export const ImagesRoutingClientUploadHandler = ({
     setUploadHandler({
       collectionSlug,
       handler: async ({ docPrefix, file, updateFilename }) => {
-        const documentID = id == null ? undefined : String(id)
-        const operation = documentID ? 'replacement' : 'create'
+        const { documentID, oldPrefix, operation } = resolveImageClientUploadTarget({
+          data,
+          docPrefix,
+          id,
+          savedDocumentData,
+        })
         const endpoint = formatAdminURL({ apiRoute, path: serverHandlerPath, serverURL })
         const response = await fetch(endpoint, {
           body: JSON.stringify({
@@ -44,6 +50,7 @@ export const ImagesRoutingClientUploadHandler = ({
             filename: file.name,
             filesize: file.size,
             mimeType: file.type,
+            oldPrefix,
             operation,
           }),
           credentials: 'include',
@@ -54,6 +61,7 @@ export const ImagesRoutingClientUploadHandler = ({
           docPrefix: string
           documentID?: string
           filename?: string
+          oldPrefix?: string
           operation: 'create' | 'replacement'
           signature: string
           storageEnvironment: 'local' | 'preview' | 'production'
@@ -68,6 +76,7 @@ export const ImagesRoutingClientUploadHandler = ({
         if (!upload.ok) throw new Error(`OSS upload failed with HTTP ${upload.status}.`)
         return {
           documentID: result.documentID,
+          oldPrefix: result.oldPrefix,
           operation: result.operation,
           prefix: result.docPrefix,
           signature: result.signature,
