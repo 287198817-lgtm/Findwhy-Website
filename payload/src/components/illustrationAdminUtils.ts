@@ -37,20 +37,6 @@ export const responseError = async (response: Response, fallback: string) => {
 }
 
 export const findOrCreateImage = async (file: File, uploadHandler: ClientUploadHandler | null) => {
-  const duplicateQuery = new URLSearchParams({
-    depth: '0',
-    limit: '1',
-    'where[filename][equals]': file.name,
-  })
-  const duplicateResponse = await fetch(`/api/images?${duplicateQuery}`, { credentials: 'include' })
-
-  if (!duplicateResponse.ok) throw new Error('Unable to check the media library.')
-
-  const duplicateResult = (await duplicateResponse.json()) as CollectionResponse<ImageDocument>
-  if (duplicateResult.docs[0]) {
-    return { document: duplicateResult.docs[0], reused: true }
-  }
-
   const uploadResponse = await createMediaDocument({
     collectionSlug: 'images',
     data: {

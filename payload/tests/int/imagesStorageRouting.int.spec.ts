@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { Images } from '../../src/collections/Images'
+import { findOrCreateImage } from '../../src/components/illustrationAdminUtils'
 import {
   createImageStorageRouter,
   createImagesRoutingAdapter,
@@ -68,6 +69,31 @@ describe('image storage routing', () => {
     expect([prefixA, filename]).not.toEqual([prefixB, filename])
     expect(getImageStorageKey({ docPrefix: prefixA, filename }))
       .not.toBe(getImageStorageKey({ docPrefix: prefixB, filename }))
+  })
+
+  it('does not use display filename as image document identity', async () => {
+    const previousFetch = global.fetch
+    const requests: string[] = []
+    global.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      requests.push(String(input))
+      return new Response(JSON.stringify({ doc: { filename: '8.jpg', id: 2 } }), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 201,
+      })
+    }) as typeof fetch
+
+    try {
+      const result = await findOrCreateImage(
+        new File(['image'], '8.jpg', { type: 'image/jpeg' }),
+        null,
+      )
+      expect(result).toEqual({ document: { filename: '8.jpg', id: 2 }, reused: false })
+      expect(requests).toHaveLength(1)
+      expect(requests[0]).toBe('/api/images')
+      expect(requests[0]).not.toContain('where%5Bfilename%5D')
+    } finally {
+      global.fetch = previousFetch
+    }
   })
 
   it('uses explicit environment and independent 128-bit upload namespaces', () => {
