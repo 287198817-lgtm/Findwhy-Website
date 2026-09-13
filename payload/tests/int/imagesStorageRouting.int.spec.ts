@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import { Images } from '../../src/collections/Images'
 import {
   createImageStorageRouter,
   createImagesRoutingAdapter,
@@ -51,6 +52,24 @@ const setup = () => {
 }
 
 describe('image storage routing', () => {
+  it('allows duplicate display filenames only across distinct storage namespaces', () => {
+    expect(Images.upload).toMatchObject({
+      filenameCompoundIndex: ['prefix', 'filename'],
+    })
+
+    const filename = '8.jpg'
+    const prefixA = 'images/preview/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    const prefixB = 'images/preview/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+    const documents = [
+      { filename, id: 1, prefix: prefixA },
+      { filename, id: 2, prefix: prefixB },
+    ]
+    expect(documents.filter((document) => document.filename === filename)).toHaveLength(2)
+    expect([prefixA, filename]).not.toEqual([prefixB, filename])
+    expect(getImageStorageKey({ docPrefix: prefixA, filename }))
+      .not.toBe(getImageStorageKey({ docPrefix: prefixB, filename }))
+  })
+
   it('uses explicit environment and independent 128-bit upload namespaces', () => {
     const preview = createImageUploadNamespace({
       environment: 'preview',

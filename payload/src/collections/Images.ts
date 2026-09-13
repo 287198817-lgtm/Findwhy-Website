@@ -21,6 +21,7 @@ export const Images: CollectionConfig = {
     },
   },
   upload: {
+    filenameCompoundIndex: ['prefix', 'filename'],
     mimeTypes: ['image/*'],
     imageSizes: [
       { name: 'thumbnail', width: 480, height: 480, fit: 'inside' },
