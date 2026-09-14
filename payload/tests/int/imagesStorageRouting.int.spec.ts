@@ -592,6 +592,65 @@ describe('image storage routing', () => {
     process.env.PAYLOAD_SECRET = previousSecret
   })
 
+  it.each(['8-1.jpg', '8-2.jpg'])(
+    'sets create prefix and canonical %s before Payload filename conflict resolution',
+    (filename) => {
+      const previousFlag = process.env.ENABLE_IMAGES_STORAGE_ROUTER
+      const previousEnvironment = process.env.IMAGES_STORAGE_ENV
+      const previousSecret = process.env.PAYLOAD_SECRET
+      process.env.ENABLE_IMAGES_STORAGE_ROUTER = 'true'
+      process.env.IMAGES_STORAGE_ENV = 'preview'
+      process.env.PAYLOAD_SECRET = 'unit-test-secret'
+      const normalizedPrefix = `images/preview/${(filename === '8-1.jpg' ? 'a' : 'b').repeat(32)}`
+      const clientUploadContext = {
+        ...validContextTime,
+        filename,
+        operation: 'create' as const,
+        prefix: normalizedPrefix,
+        signature: signImageUploadContext({
+          ...validContextTime,
+          filename,
+          operation: 'create',
+          prefix: normalizedPrefix,
+          secret: 'unit-test-secret',
+          storageEnvironment: 'preview',
+        }),
+        storageEnvironment: 'preview' as const,
+        storageProvider: 'aliyun-oss' as const,
+      }
+      const args = {
+        data: {},
+        overwriteExistingFiles: false,
+        req: { file: { clientUploadContext, name: '8.jpg' } },
+      }
+
+      const result = preserveCanonicalImageFilename({
+        args,
+        operation: 'create',
+        req: args.req,
+      } as never) as unknown as typeof args & { data: { prefix: string } }
+
+      expect(args.req.file.name).toBe(filename)
+      expect(result.data.prefix).toBe(normalizedPrefix)
+      expect(result.overwriteExistingFiles).toBe(false)
+      const filenames = [
+        filename,
+        filename.replace(/\.jpg$/, '-329x480.jpg'),
+        filename.replace(/\.jpg$/, '-1200x1752.webp'),
+        filename.replace(/\.jpg$/, '-2500x3650.jpg'),
+      ]
+      expect(
+        filenames.map((name) =>
+          getImageStorageKey({ docPrefix: result.data.prefix, filename: name }),
+        ),
+      ).toEqual(filenames.map((name) => `${normalizedPrefix}/${name}`))
+
+      process.env.ENABLE_IMAGES_STORAGE_ROUTER = previousFlag
+      process.env.IMAGES_STORAGE_ENV = previousEnvironment
+      process.env.PAYLOAD_SECRET = previousSecret
+    },
+  )
+
   it('replaces stale form prefix with the signed fresh namespace in a realistic update hook', () => {
     const previousFlag = process.env.ENABLE_IMAGES_STORAGE_ROUTER
     const previousEnvironment = process.env.IMAGES_STORAGE_ENV
