@@ -7,6 +7,9 @@ const __filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(__filename)
 
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: {
+    '/*': ['./node_modules/ffmpeg-static/ffmpeg'],
+  },
   images: {
     localPatterns: [
       {
