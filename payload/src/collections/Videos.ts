@@ -1,6 +1,5 @@
 import type { CollectionConfig } from 'payload'
 
-import { generateVideoPoster } from '../hooks/generateVideoPoster'
 import { cleanupVideoPoster } from '../hooks/cleanupVideoPoster'
 import { syncWebVideo } from '../hooks/syncWebVideo'
 
@@ -10,7 +9,7 @@ export const Videos: CollectionConfig = {
   admin: { useAsTitle: 'filename' },
   upload: { mimeTypes: ['video/mp4', 'video/webm', 'video/quicktime'] },
   hooks: {
-    afterChange: [generateVideoPoster, syncWebVideo],
+    afterChange: [syncWebVideo],
     afterDelete: [cleanupVideoPoster],
   },
   fields: [
