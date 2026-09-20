@@ -57,6 +57,9 @@ const setup = () => {
     verifyWebVideo: vi.fn(async () => undefined),
     verifyPoster: vi.fn(async () => undefined),
     updateVideoRelationships: vi.fn(async () => undefined),
+    verifyRelationshipSwitch: vi.fn(async () => undefined),
+    cleanupOldWebVideo: vi.fn(async () => ({ deleted: true, referenceCount: 0 })),
+    cleanupOldPoster: vi.fn(async () => ({ deleted: true, referenceCount: 0 })),
     removeWebVideo: vi.fn(async () => undefined),
     removePoster: vi.fn(async () => undefined),
   }
@@ -91,6 +94,8 @@ describe('Video → WebVideo + poster synchronization', () => {
     expect(dependencies.updateVideoRelationships).toHaveBeenCalledWith(
       expect.objectContaining({ id: 9, posterID: 120, webVideoID: 44 }),
     )
+    expect(dependencies.cleanupOldWebVideo).not.toHaveBeenCalled()
+    expect(dependencies.cleanupOldPoster).not.toHaveBeenCalled()
   })
 
   it('generates a new WebVideo and a new poster for replacement', async () => {
@@ -105,6 +110,9 @@ describe('Video → WebVideo + poster synchronization', () => {
     await run()
     expect(dependencies.updateVideoRelationships).toHaveBeenCalledAfter(dependencies.verifyWebVideo)
     expect(dependencies.updateVideoRelationships).toHaveBeenCalledAfter(dependencies.verifyPoster)
+    expect(dependencies.verifyRelationshipSwitch).toHaveBeenCalledAfter(dependencies.updateVideoRelationships)
+    expect(dependencies.cleanupOldWebVideo).toHaveBeenCalledAfter(dependencies.verifyRelationshipSwitch)
+    expect(dependencies.cleanupOldPoster).toHaveBeenCalledAfter(dependencies.verifyRelationshipSwitch)
   })
 
   it('does not regenerate either asset for metadata-only edits', async () => {
@@ -113,6 +121,8 @@ describe('Video → WebVideo + poster synchronization', () => {
     expect(dependencies.createWebVideo).not.toHaveBeenCalled()
     expect(dependencies.createPoster).not.toHaveBeenCalled()
     expect(dependencies.updateVideoRelationships).not.toHaveBeenCalled()
+    expect(dependencies.cleanupOldWebVideo).not.toHaveBeenCalled()
+    expect(dependencies.cleanupOldPoster).not.toHaveBeenCalled()
   })
 
   it('preserves both old relationships when poster generation fails', async () => {
@@ -130,6 +140,44 @@ describe('Video → WebVideo + poster synchronization', () => {
     await run()
     expect(dependencies.removePoster).toHaveBeenCalledWith(expect.objectContaining({ id: 120 }))
     expect(dependencies.removeWebVideo).toHaveBeenCalledWith(expect.objectContaining({ id: 44 }))
+  })
+
+  it('deletes orphaned old WebVideo and poster only after a verified switch', async () => {
+    const { dependencies, run } = setup()
+    await run()
+    expect(dependencies.cleanupOldWebVideo).toHaveBeenCalledWith(expect.objectContaining({ id: 4 }))
+    expect(dependencies.cleanupOldPoster).toHaveBeenCalledWith(expect.objectContaining({ id: 22 }))
+    expect(dependencies.cleanupOldWebVideo).toHaveBeenCalledAfter(dependencies.verifyRelationshipSwitch)
+  })
+
+  it('preserves referenced old WebVideo and poster', async () => {
+    const { dependencies, run } = setup()
+    dependencies.cleanupOldWebVideo.mockResolvedValueOnce({ deleted: false, referenceCount: 1 })
+    dependencies.cleanupOldPoster.mockResolvedValueOnce({ deleted: false, referenceCount: 2 })
+    await run()
+    expect(dependencies.removeWebVideo).not.toHaveBeenCalled()
+    expect(dependencies.removePoster).not.toHaveBeenCalled()
+  })
+
+  it('does not break active relationships when old-media cleanup fails', async () => {
+    const { dependencies, logger, run } = setup()
+    dependencies.cleanupOldWebVideo.mockRejectedValueOnce(new Error('blob delete failed'))
+    dependencies.cleanupOldPoster.mockRejectedValueOnce(new Error('oss delete failed'))
+    await run()
+    expect(dependencies.updateVideoRelationships).toHaveBeenCalledOnce()
+    expect(dependencies.removeWebVideo).not.toHaveBeenCalled()
+    expect(dependencies.removePoster).not.toHaveBeenCalled()
+    expect(logger.error).toHaveBeenCalledTimes(2)
+  })
+
+  it('preserves all old media when post-switch verification fails', async () => {
+    const { dependencies, run } = setup()
+    dependencies.verifyRelationshipSwitch.mockRejectedValueOnce(new Error('read-back failed'))
+    await run()
+    expect(dependencies.removeWebVideo).not.toHaveBeenCalled()
+    expect(dependencies.removePoster).not.toHaveBeenCalled()
+    expect(dependencies.cleanupOldWebVideo).not.toHaveBeenCalled()
+    expect(dependencies.cleanupOldPoster).not.toHaveBeenCalled()
   })
 
   it('uses a new Image ID and collision-safe OSS namespace supplied by Images storage', async () => {

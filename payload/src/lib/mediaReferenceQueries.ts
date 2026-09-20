@@ -121,3 +121,27 @@ export const getImageReferenceLabels = async ({
 
   return Array.from(new Set(labels.filter((label): label is string => Boolean(label))))
 }
+
+export const getImageReferenceCount = async ({
+  imageID,
+  payload,
+  req,
+}: ImageReferenceQueryArgs): Promise<number> => {
+  const normalizedID = String(imageID)
+  const documentsBySource = await Promise.all(
+    imageReferenceSources.map(async (source) => ({
+      documents: await findSourceDocuments({ payload, req, source }),
+      source,
+    })),
+  )
+
+  let count = 0
+  for (const { documents, source } of documentsBySource) {
+    for (const document of documents) {
+      for (const field of source.fields) {
+        count += relationshipIDs(document[field]).filter((id) => id === normalizedID).length
+      }
+    }
+  }
+  return count
+}

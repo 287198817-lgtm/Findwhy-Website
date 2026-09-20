@@ -9,6 +9,7 @@ import ffmpegPath from 'ffmpeg-static'
 import type { CollectionAfterChangeHook, PayloadRequest } from 'payload'
 
 import type { Image, Video, WebVideo } from '../payload-types'
+import { getImageReferenceCount } from '../lib/mediaReferenceQueries'
 
 const VIDEO_SYNC_CONTEXT_KEY = 'skipVideoMediaSync'
 const WEB_VIDEO_CRF = 22
@@ -16,6 +17,8 @@ const WEB_VIDEO_CRF = 22
 type VideoWithUploadFields = Video & { mimeType?: null | string; url?: null | string }
 
 export type SyncDependencies = {
+  cleanupOldPoster: (args: { id: number; req: PayloadRequest }) => Promise<{ deleted: boolean; referenceCount: number }>
+  cleanupOldWebVideo: (args: { id: number; req: PayloadRequest }) => Promise<{ deleted: boolean; referenceCount: number }>
   createPoster: (args: { alt: string; buffer: Buffer; filename: string; req: PayloadRequest }) => Promise<Image>
   createWebVideo: (args: { buffer: Buffer; filename: string; req: PayloadRequest }) => Promise<WebVideo>
   fetchSource: (url: string) => Promise<Buffer>
@@ -24,6 +27,7 @@ export type SyncDependencies = {
   removeWebVideo: (args: { id: number; req: PayloadRequest }) => Promise<void>
   transcode: (source: Buffer) => Promise<Buffer>
   updateVideoRelationships: (args: { id: number; posterID: number; req: PayloadRequest; webVideoID: number }) => Promise<void>
+  verifyRelationshipSwitch: (args: { id: number; posterID: number; req: PayloadRequest; webVideoID: number }) => Promise<void>
   verifyPoster: (doc: Image) => Promise<void>
   verifyWebVideo: (doc: WebVideo) => Promise<void>
 }
@@ -138,6 +142,27 @@ const defaultDependencies: SyncDependencies = {
       data: { poster: posterID, webVideo: webVideoID }, id, overrideAccess: true, req,
     })
   },
+  verifyRelationshipSwitch: async ({ id, posterID, req, webVideoID }) => {
+    const current = await req.payload.findByID({ collection: 'videos', depth: 0, id, overrideAccess: true, req })
+    if (relationshipID(current.poster) !== posterID || relationshipID(current.webVideo) !== webVideoID) {
+      throw new Error(`Video ${id} media relationship switch verification failed.`)
+    }
+  },
+  cleanupOldWebVideo: async ({ id, req }) => {
+    const references = await req.payload.find({
+      collection: 'videos', depth: 0, limit: 1, overrideAccess: true, req,
+      where: { webVideo: { equals: id } },
+    })
+    if (references.totalDocs > 0) return { deleted: false, referenceCount: references.totalDocs }
+    await req.payload.delete({ collection: 'web-videos', id, overrideAccess: true, req })
+    return { deleted: true, referenceCount: 0 }
+  },
+  cleanupOldPoster: async ({ id, req }) => {
+    const referenceCount = await getImageReferenceCount({ imageID: id, payload: req.payload, req })
+    if (referenceCount > 0) return { deleted: false, referenceCount }
+    await req.payload.delete({ collection: 'images', id, overrideAccess: true, req })
+    return { deleted: true, referenceCount: 0 }
+  },
   removePoster: async ({ id, req }) => {
     await req.payload.delete({ collection: 'images', context: { [VIDEO_SYNC_CONTEXT_KEY]: true }, id, overrideAccess: true, req })
   },
@@ -151,12 +176,22 @@ export const synchronizeVideoMedia = async ({ dependencies = defaultDependencies
   doc: Video
   previousDoc?: Video
   req: PayloadRequest
-}): Promise<{ newPoster: Image; newWebVideo: WebVideo; oldPosterID: number | null; oldWebVideoID: number | null }> => {
+}): Promise<{
+  cleanup: {
+    oldPoster?: { deleted: boolean; referenceCount: number }
+    oldWebVideo?: { deleted: boolean; referenceCount: number }
+  }
+  newPoster: Image
+  newWebVideo: WebVideo
+  oldPosterID: number | null
+  oldWebVideoID: number | null
+}> => {
   const video = doc as VideoWithUploadFields
   const oldPosterID = relationshipID(previousDoc?.poster)
   const oldWebVideoID = relationshipID(previousDoc?.webVideo)
   let newPoster: Image | null = null
   let newWebVideo: WebVideo | null = null
+  let switched = false
 
   try {
     const source = await dependencies.fetchSource(sourceURL(video, req))
@@ -178,16 +213,21 @@ export const synchronizeVideoMedia = async ({ dependencies = defaultDependencies
     await dependencies.verifyPoster(newPoster)
 
     await dependencies.updateVideoRelationships({ id: video.id, posterID: newPoster.id, req, webVideoID: newWebVideo.id })
-    return { newPoster, newWebVideo, oldPosterID, oldWebVideoID }
+    // Once the DB switch returns successfully, never compensate-delete the now-active media.
+    // A later verification failure preserves both old and new assets for safe audit/recovery.
+    switched = true
+    await dependencies.verifyRelationshipSwitch({ id: video.id, posterID: newPoster.id, req, webVideoID: newWebVideo.id })
+    await dependencies.verifyWebVideo(newWebVideo)
+    await dependencies.verifyPoster(newPoster)
   } catch (error) {
-    if (newPoster) {
+    if (!switched && newPoster) {
       try {
         await dependencies.removePoster({ id: newPoster.id, req })
       } catch (cleanupError) {
         req.payload.logger.error({ err: cleanupError, collection: 'images', documentID: newPoster.id, operation: 'compensating-delete', msg: 'Unable to remove an unswitched generated poster Image.' })
       }
     }
-    if (newWebVideo) {
+    if (!switched && newWebVideo) {
       try {
         await dependencies.removeWebVideo({ id: newWebVideo.id, req })
       } catch (cleanupError) {
@@ -196,6 +236,49 @@ export const synchronizeVideoMedia = async ({ dependencies = defaultDependencies
     }
     throw error
   }
+
+  const cleanup: {
+    oldPoster?: { deleted: boolean; referenceCount: number }
+    oldWebVideo?: { deleted: boolean; referenceCount: number }
+  } = {}
+
+  if (oldWebVideoID !== null && oldWebVideoID !== newWebVideo.id) {
+    try {
+      cleanup.oldWebVideo = await dependencies.cleanupOldWebVideo({ id: oldWebVideoID, req })
+      if (!cleanup.oldWebVideo.deleted) {
+        req.payload.logger.info({
+          collection: 'web-videos', documentID: oldWebVideoID,
+          referenceCount: cleanup.oldWebVideo.referenceCount,
+          operation: 'replacement-cleanup', msg: 'CLEANUP SKIPPED — STILL REFERENCED',
+        })
+      }
+    } catch (error) {
+      req.payload.logger.error({
+        err: error, collection: 'web-videos', documentID: oldWebVideoID,
+        operation: 'replacement-cleanup', msg: 'Old WebVideo cleanup failed after verified relationship switch.',
+      })
+    }
+  }
+
+  if (oldPosterID !== null && oldPosterID !== newPoster.id) {
+    try {
+      cleanup.oldPoster = await dependencies.cleanupOldPoster({ id: oldPosterID, req })
+      if (!cleanup.oldPoster.deleted) {
+        req.payload.logger.info({
+          collection: 'images', documentID: oldPosterID,
+          referenceCount: cleanup.oldPoster.referenceCount,
+          operation: 'replacement-cleanup', msg: 'CLEANUP SKIPPED — STILL REFERENCED',
+        })
+      }
+    } catch (error) {
+      req.payload.logger.error({
+        err: error, collection: 'images', documentID: oldPosterID,
+        operation: 'replacement-cleanup', msg: 'Old poster cleanup failed after verified relationship switch.',
+      })
+    }
+  }
+
+  return { cleanup, newPoster, newWebVideo, oldPosterID, oldWebVideoID }
 }
 
 export const synchronizeWebVideo = synchronizeVideoMedia
