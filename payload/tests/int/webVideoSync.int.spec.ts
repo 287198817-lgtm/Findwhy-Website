@@ -165,6 +165,7 @@ describe('Video → WebVideo + poster synchronization', () => {
   it('keeps the frontend preference for webVideo with original fallback', async () => {
     const frontendSource = await readFile('../src/lib/payload/animations.ts', 'utf8')
     expect(frontendSource).toContain('getMediaUrl(document.video.webVideo) ?? getMediaUrl(document.video)')
+    expect(frontendSource).toContain('getImageUrls(document.video.poster) ?? getImageUrls(document.poster)')
   })
 
   it('uses the existing Images collection and routing pipeline', async () => {

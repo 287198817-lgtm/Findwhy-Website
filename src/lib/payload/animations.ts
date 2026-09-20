@@ -3,6 +3,7 @@ import { getImageUrls, type PayloadImage } from './media';
 
 interface PayloadMedia extends PayloadImage {
 	url?: string | null;
+	poster?: PayloadMedia | number | string | null;
 	webVideo?: PayloadMedia | number | string | null;
 }
 
@@ -56,7 +57,9 @@ export const getAnimations = async (): Promise<AnimationItem[]> => {
 	return documents
 		.filter((document) => document.draft !== true)
 		.map((document) => {
-			const poster = getImageUrls(document.poster);
+			const poster = document.video && typeof document.video === 'object'
+				? getImageUrls(document.video.poster) ?? getImageUrls(document.poster)
+				: getImageUrls(document.poster);
 			return {
 				slug: document.slug,
 				video: document.video && typeof document.video === 'object'
