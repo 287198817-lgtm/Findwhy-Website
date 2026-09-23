@@ -276,6 +276,23 @@ describe('image storage routing', () => {
     expect(oss.deleteFile).not.toHaveBeenCalledWith({ docPrefix: prefixB, filename: '8.jpg' })
   })
 
+  it('deletes exactly the three files owned by a new Image without portfolio', async () => {
+    const { oss, router } = setup()
+    const prefix = 'images/preview/cccccccccccccccccccccccccccccccc'
+    const filenames = ['new.jpg', 'new-329x480.jpg', 'new-1200x1752.webp']
+
+    for (const filename of filenames) {
+      await router.deleteFile({ prefix, storageProvider: 'aliyun-oss' }, filename)
+    }
+
+    expect(oss.deleteFile).toHaveBeenCalledTimes(3)
+    expect(oss.deleteFile).toHaveBeenCalledWith({ docPrefix: prefix, filename: 'new.jpg' })
+    expect(oss.deleteFile).not.toHaveBeenCalledWith({
+      docPrefix: prefix,
+      filename: 'new-2500x3650.jpg',
+    })
+  })
+
   it('does not mutate provider during metadata-only routing', () => {
     const { router } = setup()
     const doc = { storageProvider: 'vercel-blob' as const }

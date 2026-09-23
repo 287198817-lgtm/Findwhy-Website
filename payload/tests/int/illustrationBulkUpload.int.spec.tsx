@@ -86,6 +86,27 @@ describe('IllustrationBulkUpload UI', () => {
     expect(refresh).toHaveBeenCalled()
   })
 
+  test('shows only observable upload transaction phases', async () => {
+    const imageProcessing = deferred()
+    const illustrationCreation = deferred()
+    vi.mocked(createIllustrationFromFile).mockImplementation(async (_file, _handler, callbacks) => {
+      callbacks?.onOriginalUploadComplete?.()
+      await imageProcessing.promise
+      callbacks?.onImageCreated?.()
+      await illustrationCreation.promise
+      return new Response('{}', { status: 201 })
+    })
+
+    await renderComponent()
+    await act(async () => selectFiles(['phases.jpg']))
+    await waitForText('Processing: phases.jpg')
+    await act(async () => imageProcessing.resolve())
+    await waitForText('Creating illustration: phases.jpg')
+    await act(async () => illustrationCreation.resolve())
+
+    await waitForText('Completed 1 / 1')
+  })
+
   test('warns before navigation while a transaction is active', async () => {
     const active = deferred()
     vi.mocked(createIllustrationFromFile).mockReturnValue(active.promise as never)

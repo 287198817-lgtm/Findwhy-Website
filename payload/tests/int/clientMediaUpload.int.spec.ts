@@ -52,6 +52,29 @@ describe('client media uploads', () => {
     expect(request.headers).toBeUndefined()
   })
 
+  test('reports original upload completion before Payload starts image processing', async () => {
+    const events: string[] = []
+    const file = new File(['image'], 'phase.jpg', { type: 'image/jpeg' })
+    const uploadHandler = vi.fn().mockImplementation(async () => {
+      events.push('original-upload')
+      return { pathname: 'images/phase.jpg' }
+    })
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => {
+      events.push('payload-processing')
+      return new Response('{}', { status: 200 })
+    }))
+
+    await createMediaDocument({
+      collectionSlug: 'images',
+      data: {},
+      file,
+      onOriginalUploadComplete: () => events.push('processing-status'),
+      uploadHandler,
+    })
+
+    expect(events).toEqual(['original-upload', 'processing-status', 'payload-processing'])
+  })
+
   test('deletes a newly created poster when video document creation fails', async () => {
     const file = new File(['video'], 'rollback-video.mp4', { type: 'video/mp4' })
     const poster = new File(['poster'], 'rollback-video-poster.jpg', { type: 'image/jpeg' })

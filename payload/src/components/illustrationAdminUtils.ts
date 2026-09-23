@@ -39,7 +39,8 @@ export const responseError = async (response: Response, fallback: string) => {
 export const findOrCreateImage = async (
   file: File,
   uploadHandler: ClientUploadHandler | null,
-  onUploadComplete?: () => void,
+  onImageCreated?: () => void,
+  onOriginalUploadComplete?: () => void,
 ) => {
   const uploadResponse = await createMediaDocument({
     collectionSlug: 'images',
@@ -48,6 +49,7 @@ export const findOrCreateImage = async (
       metadata: { copyright: '© Findwhy' },
     },
     file,
+    onOriginalUploadComplete,
     uploadHandler,
   })
 
@@ -60,16 +62,24 @@ export const findOrCreateImage = async (
   }
 
   const result = (await uploadResponse.json()) as { doc: ImageDocument }
-  onUploadComplete?.()
+  onImageCreated?.()
   return { document: result.doc, reused: false }
 }
 
 export const createIllustrationFromFile = async (
   file: File,
   uploadHandler: ClientUploadHandler | null,
-  onImageCreated?: () => void,
+  callbacks: {
+    onImageCreated?: () => void
+    onOriginalUploadComplete?: () => void
+  } = {},
 ) => {
-  const { document } = await findOrCreateImage(file, uploadHandler, onImageCreated)
+  const { document } = await findOrCreateImage(
+    file,
+    uploadHandler,
+    callbacks.onImageCreated,
+    callbacks.onOriginalUploadComplete,
+  )
   const response = await fetch('/api/illustrations', {
     method: 'POST',
     credentials: 'include',

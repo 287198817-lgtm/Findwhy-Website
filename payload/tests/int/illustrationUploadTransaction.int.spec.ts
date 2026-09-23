@@ -13,7 +13,7 @@ describe('Illustration upload transaction', () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ doc: { id: 902 } }), { status: 201 }))
     vi.stubGlobal('fetch', fetchMock)
 
-    await createIllustrationFromFile(file, null, onImageCreated)
+    await createIllustrationFromFile(file, null, { onImageCreated })
 
     expect(onImageCreated).toHaveBeenCalledOnce()
     expect(fetchMock.mock.calls[0][0]).toBe('/api/images')

@@ -2,6 +2,7 @@ export type IllustrationUploadStatus =
   | 'waiting'
   | 'uploading'
   | 'processing'
+  | 'creating-illustration'
   | 'completed'
   | 'failed'
   | 'stopped'
@@ -29,7 +30,7 @@ export type IllustrationUploadQueueSnapshot = {
 
 type ProcessFile = (
   file: File,
-  setStatus: (status: 'uploading' | 'processing') => void,
+  setStatus: (status: 'uploading' | 'processing' | 'creating-illustration') => void,
 ) => Promise<void>
 
 type QueueOptions = {

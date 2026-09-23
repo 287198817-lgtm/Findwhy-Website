@@ -16,6 +16,7 @@ type CreateMediaDocumentArgs = {
   collectionSlug: 'images' | 'videos'
   data: Record<string, unknown>
   file: File
+  onOriginalUploadComplete?: () => void
   uploadHandler: ClientUploadHandler | null
 }
 
@@ -29,6 +30,7 @@ export const createMediaDocument = async ({
   collectionSlug,
   data,
   file,
+  onOriginalUploadComplete,
   uploadHandler,
 }: CreateMediaDocumentArgs) => {
   const formData = new FormData()
@@ -51,6 +53,8 @@ export const createMediaDocument = async ({
       size: file.size,
     })
   }
+
+  onOriginalUploadComplete?.()
 
   formData.append('file', uploadFile)
   formData.append('_payload', JSON.stringify(data))

@@ -16,6 +16,7 @@ const initialSnapshot: IllustrationUploadQueueSnapshot = { items: [], phase: 'id
 const statusLabel = {
   completed: 'Completed',
   failed: 'Failed',
+  'creating-illustration': 'Creating illustration',
   processing: 'Processing',
   stopped: 'Stopped',
   uploading: 'Uploading',
@@ -31,13 +32,16 @@ export const IllustrationBulkUpload: React.FC = () => {
 
   const processFile = async (
     file: File,
-    setStatus: (status: 'uploading' | 'processing') => void,
+    setStatus: (status: 'uploading' | 'processing' | 'creating-illustration') => void,
   ) => {
     setStatus('uploading')
     await createIllustrationFromFile(
       file,
       getUploadHandler({ collectionSlug: 'images' }),
-      () => setStatus('processing'),
+      {
+        onImageCreated: () => setStatus('creating-illustration'),
+        onOriginalUploadComplete: () => setStatus('processing'),
+      },
     )
   }
 
@@ -70,7 +74,7 @@ export const IllustrationBulkUpload: React.FC = () => {
   const failed = snapshot.items.filter((item) => item.status === 'failed').length
   const notUploaded = snapshot.items.filter((item) => item.status === 'stopped').length
   const current = snapshot.items.find((item) =>
-    ['uploading', 'processing'].includes(item.status),
+    ['uploading', 'processing', 'creating-illustration'].includes(item.status),
   )
   const active = ['running', 'pausing', 'stopping'].includes(snapshot.phase)
   const progress = snapshot.items.length > 0 ? (completed / snapshot.items.length) * 100 : 0
@@ -136,7 +140,7 @@ export const IllustrationBulkUpload: React.FC = () => {
           </div>
           {current && (
             <div style={{ marginTop: '8px' }}>
-              {current.status === 'uploading' ? 'Uploading' : 'Processing'}: {current.file.name}
+              {statusLabel[current.status]}: {current.file.name}
             </div>
           )}
           {snapshot.phase === 'pausing' && <div>Pausing after current upload...</div>}

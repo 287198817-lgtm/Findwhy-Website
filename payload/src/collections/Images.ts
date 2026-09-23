@@ -29,6 +29,8 @@ export const Images: CollectionConfig = {
     mimeTypes: ['image/*'],
     imageSizes: [
       { name: 'thumbnail', width: 480, height: 480, fit: 'inside' },
+      // Schema-only legacy size. Runtime generation is disabled after Payload initializes so
+      // historical portfolio metadata and exact-object deletion remain backward compatible.
       { name: 'portfolio', width: 2500, fit: 'inside', withoutEnlargement: true },
       {
         name: 'card',

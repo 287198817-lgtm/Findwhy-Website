@@ -16,6 +16,7 @@ import { Series } from './collections/Series'
 import { Projects } from './collections/Projects'
 import { About } from './globals/About'
 import { imagesRoutingStorage } from './storage/images/plugin'
+import { withPortfolioGenerationDisabled } from './storage/images/disablePortfolioGeneration'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -42,6 +43,7 @@ export default buildConfig({
   }),
   sharp,
   plugins: [
+    withPortfolioGenerationDisabled,
     vercelBlobStorage({
       alwaysInsertFields: true,
       clientUploads: true,

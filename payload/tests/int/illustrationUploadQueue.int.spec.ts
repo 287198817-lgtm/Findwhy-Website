@@ -40,18 +40,27 @@ describe('IllustrationUploadQueue', () => {
     expect(queue.getSnapshot().items.every((item) => item.status === 'completed')).toBe(true)
   })
 
-  test('reports uploading, processing and completed for each transaction', async () => {
+  test('reports uploading, processing, Illustration creation and completed for each transaction', async () => {
     const statuses: string[] = []
     const queue = new IllustrationUploadQueue({
       onChange: (snapshot) => statuses.push(snapshot.items[0]?.status),
       processFile: async (_file, setStatus) => {
         setStatus('uploading')
         setStatus('processing')
+        setStatus('creating-illustration')
       },
     })
 
     await queue.start(files('one.jpg'))
-    expect(statuses).toEqual(expect.arrayContaining(['waiting', 'uploading', 'processing', 'completed']))
+    expect(statuses).toEqual(
+      expect.arrayContaining([
+        'waiting',
+        'uploading',
+        'processing',
+        'creating-illustration',
+        'completed',
+      ]),
+    )
   })
 
   test('pause waits for the active complete transaction and leaves later files waiting', async () => {
