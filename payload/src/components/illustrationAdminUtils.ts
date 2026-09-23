@@ -1,5 +1,5 @@
 import type { ClientUploadHandler } from './clientMediaUpload'
-import { createMediaDocument } from './clientMediaUpload'
+import { createMediaDocument, deleteMediaDocument } from './clientMediaUpload'
 
 export type ImageDocument = {
   id: number | string
@@ -36,7 +36,11 @@ export const responseError = async (response: Response, fallback: string) => {
   return result?.errors?.[0]?.message || result?.message || fallback
 }
 
-export const findOrCreateImage = async (file: File, uploadHandler: ClientUploadHandler | null) => {
+export const findOrCreateImage = async (
+  file: File,
+  uploadHandler: ClientUploadHandler | null,
+  onUploadComplete?: () => void,
+) => {
   const uploadResponse = await createMediaDocument({
     collectionSlug: 'images',
     data: {
@@ -48,11 +52,42 @@ export const findOrCreateImage = async (file: File, uploadHandler: ClientUploadH
   })
 
   if (!uploadResponse.ok) {
-    throw new Error(await responseError(uploadResponse, 'Image upload failed.'))
+    const error = new Error(await responseError(uploadResponse, 'Image upload failed.')) as Error & {
+      status?: number
+    }
+    error.status = uploadResponse.status
+    throw error
   }
 
   const result = (await uploadResponse.json()) as { doc: ImageDocument }
+  onUploadComplete?.()
   return { document: result.doc, reused: false }
+}
+
+export const createIllustrationFromFile = async (
+  file: File,
+  uploadHandler: ClientUploadHandler | null,
+  onImageCreated?: () => void,
+) => {
+  const { document } = await findOrCreateImage(file, uploadHandler, onImageCreated)
+  const response = await fetch('/api/illustrations', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ draft: false, image: document.id }),
+  })
+
+  if (response.ok) return response
+
+  const status = response.status
+  const message = await responseError(response, 'Unable to create Illustration.')
+  const cleanupResponse = await deleteMediaDocument('images', document.id)
+  const cleanupMessage = cleanupResponse.ok
+    ? ''
+    : ` Image cleanup failed: ${await responseError(cleanupResponse, 'unknown cleanup error')}`
+  const error = new Error(`${message}${cleanupMessage}`) as Error & { status?: number }
+  error.status = cleanupResponse.ok ? status : cleanupResponse.status
+  throw error
 }
 
 export const getUniqueIllustrationSlug = async (filename: string) => {
