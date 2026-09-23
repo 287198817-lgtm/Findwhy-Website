@@ -36,6 +36,7 @@ type ProcessFile = (
 type QueueOptions = {
   isSystemicError?: (error: unknown) => boolean
   onChange?: (snapshot: IllustrationUploadQueueSnapshot) => void
+  onItemCompleted?: (file: File) => void
   processFile: ProcessFile
 }
 
@@ -120,6 +121,7 @@ export class IllustrationUploadQueue {
           this.updateItem(index, { status })
         })
         this.updateItem(index, { status: 'completed' })
+        this.options.onItemCompleted?.(this.snapshot.items[index].file)
       } catch (error) {
         this.updateItem(index, { error: messageFor(error), status: 'failed' })
         if (this.options.isSystemicError?.(error)) this.intent = 'pause'

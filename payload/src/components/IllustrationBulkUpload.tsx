@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import React, { useEffect, useId, useRef, useState } from 'react'
 
 import { createIllustrationFromFile } from './illustrationAdminUtils'
+import { requestMediaOrderRefresh } from './mediaOrderRefresh'
 import {
   IllustrationUploadQueue,
   type IllustrationUploadQueueSnapshot,
@@ -52,6 +53,7 @@ export const IllustrationBulkUpload: React.FC = () => {
         setSnapshot(nextSnapshot)
         if (['finished', 'stopped'].includes(nextSnapshot.phase)) router.refresh()
       },
+      onItemCompleted: () => requestMediaOrderRefresh('illustrations'),
       processFile,
     })
     queueRef.current = queue

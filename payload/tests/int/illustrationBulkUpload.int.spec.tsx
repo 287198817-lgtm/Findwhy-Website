@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { IllustrationBulkUpload } from '../../src/components/IllustrationBulkUpload'
 import { createIllustrationFromFile } from '../../src/components/illustrationAdminUtils'
+import { IllustrationOrderList } from '../../src/components/MediaOrderLists'
 
 const refresh = vi.fn()
 let container: HTMLDivElement
@@ -71,6 +72,7 @@ describe('IllustrationBulkUpload UI', () => {
     if (root) await act(async () => root.unmount())
     container?.remove()
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
   })
 
   test('renders each selected filename and final completion progress', async () => {
@@ -105,6 +107,41 @@ describe('IllustrationBulkUpload UI', () => {
     await act(async () => illustrationCreation.resolve())
 
     await waitForText('Completed 1 / 1')
+  })
+
+  test('refreshes the existing Illustration order data source after each completed item', async () => {
+    let orderLoad = 0
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string) => {
+      if (!String(url).startsWith('/api/illustrations?')) throw new Error(`Unexpected fetch: ${url}`)
+      orderLoad += 1
+      return new Response(JSON.stringify({
+        docs: orderLoad === 1
+          ? [{ id: 1, image: { filename: 'historical.jpg' }, order: 1 }]
+          : [
+              { id: 1, image: { filename: 'historical.jpg' }, order: 1 },
+              { id: 2, image: { filename: 'new.jpg' }, order: 2 },
+            ],
+      }), { status: 200 })
+    }))
+    vi.mocked(createIllustrationFromFile).mockResolvedValue(new Response('{}', { status: 201 }))
+
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+    await act(async () => root.render(
+      <>
+        <IllustrationBulkUpload />
+        <IllustrationOrderList />
+      </>,
+    ))
+    await waitForText('historical.jpg')
+    await act(async () => selectFiles(['new.jpg']))
+    await waitForText('Completed 1 / 1')
+    await waitForText('new.jpg')
+
+    expect(orderLoad).toBe(2)
+    expect(container.textContent?.match(/historical\.jpg/g)).toHaveLength(1)
+    expect(container.textContent?.match(/new\.jpg/g)).toHaveLength(2) // queue row + order row
   })
 
   test('warns before navigation while a transaction is active', async () => {

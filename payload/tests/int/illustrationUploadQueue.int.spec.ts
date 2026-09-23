@@ -156,6 +156,55 @@ describe('IllustrationUploadQueue', () => {
     expect(queue.getSnapshot().items[1].error).toBe('invalid image')
   })
 
+  test('notifies completed files exactly once and excludes failed files', async () => {
+    const completed: string[] = []
+    const queue = new IllustrationUploadQueue({
+      onItemCompleted: (file) => completed.push(file.name),
+      processFile: async (file) => {
+        if (file.name === 'bad.jpg') throw new Error('invalid image')
+      },
+    })
+
+    await queue.start(files('one.jpg', 'bad.jpg', 'two.jpg'))
+
+    expect(completed).toEqual(['one.jpg', 'two.jpg'])
+  })
+
+  test('pause exposes the completed active item and resume adds remaining items without duplicates', async () => {
+    const first = deferred()
+    const completed: string[] = []
+    const queue = new IllustrationUploadQueue({
+      onItemCompleted: (file) => completed.push(file.name),
+      processFile: (file) => file.name === 'one.jpg' ? first.promise : Promise.resolve(),
+    })
+    const run = queue.start(files('one.jpg', 'two.jpg'))
+    queue.pause()
+    first.resolve()
+    await run
+
+    expect(queue.getSnapshot().phase).toBe('paused')
+    expect(completed).toEqual(['one.jpg'])
+
+    await queue.resume()
+    expect(completed).toEqual(['one.jpg', 'two.jpg'])
+  })
+
+  test('stop exposes the completed active item and excludes stopped items', async () => {
+    const first = deferred()
+    const completed: string[] = []
+    const queue = new IllustrationUploadQueue({
+      onItemCompleted: (file) => completed.push(file.name),
+      processFile: () => first.promise,
+    })
+    const run = queue.start(files('one.jpg', 'two.jpg'))
+    queue.stop()
+    first.resolve()
+    await run
+
+    expect(completed).toEqual(['one.jpg'])
+    expect(queue.getSnapshot().items[1].status).toBe('stopped')
+  })
+
   test('a systemic error pauses after the failed transaction', async () => {
     const processFile = vi.fn().mockRejectedValueOnce(
       Object.assign(new Error('server unavailable'), { status: 503 }),

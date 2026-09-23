@@ -1,7 +1,13 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+
+import {
+  isMediaOrderRefreshFor,
+  MEDIA_ORDER_REFRESH_EVENT,
+  type MediaOrderCollection,
+} from './mediaOrderRefresh'
 
 type Media = {
   filename?: string | null
@@ -19,7 +25,7 @@ type OrderItem = {
 }
 
 type CollectionResponse = { docs: OrderItem[] }
-type CollectionSlug = 'illustrations' | 'animations'
+type CollectionSlug = MediaOrderCollection
 
 const mediaObject = (value: Media | number | string | null | undefined) =>
   value && typeof value === 'object' ? value : null
@@ -29,22 +35,33 @@ const DraggableMediaOrderList: React.FC<{ collection: CollectionSlug; label: str
   const [draggedID, setDraggedID] = useState<number | string | null>(null)
   const [status, setStatus] = useState('Loading…')
   const [saving, setSaving] = useState(false)
+  const loadVersion = useRef(0)
   const router = useRouter()
 
-  const load = async () => {
+  const load = useCallback(async () => {
+    const version = ++loadVersion.current
     setStatus('Loading…')
     try {
       const response = await fetch(`/api/${collection}?depth=1&limit=1000&sort=order`, { credentials: 'include' })
       if (!response.ok) throw new Error(`Unable to load ${label}.`)
       const result = await response.json() as CollectionResponse
+      if (version !== loadVersion.current) return
       setItems(result.docs)
       setStatus('')
     } catch (error) {
+      if (version !== loadVersion.current) return
       setStatus(error instanceof Error ? error.message : 'Unable to load media.')
     }
-  }
+  }, [collection, label])
 
-  useEffect(() => { void load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    void load()
+    const refresh = (event: Event) => {
+      if (isMediaOrderRefreshFor(event, collection)) void load()
+    }
+    window.addEventListener(MEDIA_ORDER_REFRESH_EVENT, refresh)
+    return () => window.removeEventListener(MEDIA_ORDER_REFRESH_EVENT, refresh)
+  }, [collection, load])
 
   const persist = async (next: OrderItem[]) => {
     setSaving(true)
