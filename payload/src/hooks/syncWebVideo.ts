@@ -95,6 +95,30 @@ const generatePosterFrame = (source: Buffer): Promise<Buffer> =>
 const readFirstByte = async (url: string): Promise<Response> =>
   fetch(url, { headers: { Range: 'bytes=0-0' }, signal: AbortSignal.timeout(30_000) })
 
+export const verifyGeneratedPoster = async (
+  doc: Image,
+  options: {
+    environment?: string
+    read?: (url: string) => Promise<Response>
+  } = {},
+): Promise<void> => {
+  const environment = options.environment ?? process.env.IMAGES_STORAGE_ENV ?? ''
+  const expectedPrefix = `images/${environment}/`
+  const urls = [doc.url, doc.sizes?.thumbnail?.url, doc.sizes?.card?.url]
+  if (
+    !doc.id ||
+    doc.storageProvider !== 'aliyun-oss' ||
+    !doc.prefix?.startsWith(expectedPrefix) ||
+    doc.mimeType !== 'image/jpeg' ||
+    urls.some((url) => !url)
+  ) {
+    throw new Error(`Generated poster Image ${doc.id ?? 'unknown'} has incomplete storage metadata.`)
+  }
+  const responses = await Promise.all(urls.map((url) => (options.read ?? readFirstByte)(url!)))
+  const failed = responses.find((response) => !response.ok && response.status !== 206)
+  if (failed) throw new Error(`Generated poster Image ${doc.id} has an unreadable variant (HTTP ${failed.status}).`)
+}
+
 const defaultDependencies: SyncDependencies = {
   fetchSource: async (url) => {
     const response = await fetch(url, { signal: AbortSignal.timeout(60_000) })
@@ -126,16 +150,7 @@ const defaultDependencies: SyncDependencies = {
       throw new Error(`Generated WebVideo ${doc.id} has unexpected Content-Type ${contentType}.`)
     }
   },
-  verifyPoster: async (doc) => {
-    const expectedPrefix = `images/${process.env.IMAGES_STORAGE_ENV || ''}/`
-    const urls = [doc.url, doc.sizes?.thumbnail?.url, doc.sizes?.card?.url, doc.sizes?.portfolio?.url]
-    if (!doc.id || doc.storageProvider !== 'aliyun-oss' || !doc.prefix?.startsWith(expectedPrefix) || doc.mimeType !== 'image/jpeg' || urls.some((url) => !url)) {
-      throw new Error(`Generated poster Image ${doc.id ?? 'unknown'} has incomplete storage metadata.`)
-    }
-    const responses = await Promise.all(urls.map((url) => readFirstByte(url!)))
-    const failed = responses.find((response) => !response.ok && response.status !== 206)
-    if (failed) throw new Error(`Generated poster Image ${doc.id} has an unreadable variant (HTTP ${failed.status}).`)
-  },
+  verifyPoster: verifyGeneratedPoster,
   updateVideoRelationships: async ({ id, posterID, req, webVideoID }) => {
     await req.payload.update({
       collection: 'videos', context: { [VIDEO_SYNC_CONTEXT_KEY]: true },

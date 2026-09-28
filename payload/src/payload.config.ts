@@ -15,14 +15,17 @@ import { Animations } from './collections/Animations'
 import { Series } from './collections/Series'
 import { Projects } from './collections/Projects'
 import { About } from './globals/About'
+import { resolveSelfHostConfig } from './lib/selfHostConfig'
 import { imagesRoutingStorage } from './storage/images/plugin'
 import { withPortfolioGenerationDisabled } from './storage/images/disablePortfolioGeneration'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 const enableImagesStorageRouter = process.env.ENABLE_IMAGES_STORAGE_ROUTER === 'true'
+const selfHostConfig = resolveSelfHostConfig()
 
 export default buildConfig({
+  ...selfHostConfig,
   admin: {
     user: Users.slug,
     importMap: {
