@@ -27,6 +27,8 @@ export interface AnimationItem {
 	video: string;
 	poster?: string;
 	posterPreviewUrl?: string;
+	posterWidth?: number;
+	posterHeight?: number;
 	order: number;
 }
 
@@ -56,20 +58,25 @@ export const getAnimations = async (): Promise<AnimationItem[]> => {
 
 	return documents
 		.filter((document) => document.draft !== true)
-		.map((document) => {
+		.map((document): AnimationItem | null => {
 			const poster = document.video && typeof document.video === 'object'
 				? getImageUrls(document.video.poster) ?? getImageUrls(document.poster)
 				: getImageUrls(document.poster);
+			const video = document.video && typeof document.video === 'object'
+				? getMediaUrl(document.video.webVideo) ?? getMediaUrl(document.video)
+				: getMediaUrl(document.video);
+			if (!video) return null;
+
 			return {
 				slug: document.slug,
-				video: document.video && typeof document.video === 'object'
-					? getMediaUrl(document.video.webVideo) ?? getMediaUrl(document.video)
-					: getMediaUrl(document.video),
+				video,
 				poster: poster?.fullUrl,
 				posterPreviewUrl: poster?.previewUrl,
+				posterWidth: poster?.previewWidth,
+				posterHeight: poster?.previewHeight,
 				order: document.order ?? Number.POSITIVE_INFINITY,
 			};
 		})
-		.filter((document): document is AnimationItem => Boolean(document.video))
+		.filter((document): document is AnimationItem => document !== null)
 		.sort((a, b) => a.order - b.order);
 };

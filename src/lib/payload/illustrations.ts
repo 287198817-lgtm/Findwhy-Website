@@ -20,6 +20,11 @@ export interface IllustrationItem {
 	image: string;
 	previewUrl: string;
 	fullUrl: string;
+	lightboxUrl: string;
+	responsiveSrcSet?: string;
+	responsiveSizes?: string;
+	width?: number;
+	height?: number;
 	order: number;
 }
 
@@ -44,7 +49,7 @@ export const getIllustrations = async (): Promise<IllustrationItem[]> => {
 
 	return documents
 		.filter((document) => document.draft !== true)
-		.map((document) => {
+		.map((document): IllustrationItem | null => {
 			const image = getImageUrls(document.image);
 			if (!image) return null;
 
@@ -53,6 +58,11 @@ export const getIllustrations = async (): Promise<IllustrationItem[]> => {
 				image: image.fullUrl,
 				previewUrl: image.previewUrl,
 				fullUrl: image.fullUrl,
+				lightboxUrl: image.lightboxUrl,
+				responsiveSrcSet: image.responsiveSrcSet,
+				responsiveSizes: image.responsiveSizes,
+				width: image.previewWidth,
+				height: image.previewHeight,
 				order: document.order ?? Number.POSITIVE_INFINITY,
 			};
 		})

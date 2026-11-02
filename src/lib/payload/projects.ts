@@ -39,6 +39,10 @@ export interface ProjectVideo {
 	src: string;
 	cover?: string;
 	coverPreviewUrl?: string;
+	coverSrcSet?: string;
+	coverSizes?: string;
+	coverWidth?: number;
+	coverHeight?: number;
 }
 
 export interface ProjectItem {
@@ -50,6 +54,10 @@ export interface ProjectItem {
 	services: string[];
 	coverImage?: string;
 	coverImagePreviewUrl?: string;
+	coverImageSrcSet?: string;
+	coverImageSizes?: string;
+	coverImageWidth?: number;
+	coverImageHeight?: number;
 	images: string[];
 	imageMedia: ImageUrls[];
 	videos: ProjectVideo[];
@@ -76,6 +84,10 @@ const mapProject = (document: PayloadProject): ProjectItem => {
 				src,
 				cover: cover?.fullUrl,
 				coverPreviewUrl: cover?.previewUrl,
+				coverSrcSet: cover?.responsiveSrcSet,
+				coverSizes: cover?.responsiveSizes,
+				coverWidth: cover?.previewWidth,
+				coverHeight: cover?.previewHeight,
 			};
 		})
 		.filter((video): video is ProjectVideo => video !== null);
@@ -95,6 +107,10 @@ const mapProject = (document: PayloadProject): ProjectItem => {
 			.filter((service): service is string => Boolean(service)),
 		coverImage: coverImage?.fullUrl,
 		coverImagePreviewUrl: coverImage?.previewUrl,
+		coverImageSrcSet: coverImage?.responsiveSrcSet,
+		coverImageSizes: coverImage?.responsiveSizes,
+		coverImageWidth: coverImage?.previewWidth,
+		coverImageHeight: coverImage?.previewHeight,
 		images: imageMedia.map((image) => image.fullUrl),
 		imageMedia,
 		videos,

@@ -12,7 +12,11 @@ catch (error) { loadError = true; console.error('Unable to load Series from Payl
 const cards = series.filter((item) => item.cover).map((item, index) => ({
 		kind: 'series' as const,
 	src: item.coverPreviewUrl ?? item.cover!,
-		number: index + 1,
+	srcSet: item.coverSrcSet,
+	sizes: item.coverSizes,
+	width: item.coverWidth,
+	height: item.coverHeight,
+	number: index + 1,
 		titleZh: item.titleZh,
 		titleEn: item.titleEn,
 		href: `/series/${item.slug}`,
@@ -21,7 +25,7 @@ const cards = series.filter((item) => item.cover).map((item, index) => ({
 
 <PortfolioLayout title="Findwhy — Series" description="Findwhy illustration series." active="series">
 	{loadError ? <p class="series-status">SERIES COULD NOT BE LOADED.</p> : cards.length > 0 ? (
-		<Gallery items={cards} type="image" columns={2} seriesTitleMode="bilingual" />
+		<Gallery items={cards} type="image" masonry seriesTitleMode="bilingual" />
 	) : <p class="series-status">NO SERIES YET.</p>}
 </PortfolioLayout>
 

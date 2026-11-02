@@ -17,11 +17,15 @@ console.info('[illustration] Payload illustrations loaded', {
 const illustrations = payloadIllustrations.map((entry, index) => ({
 	kind: 'image' as const,
 	src: entry.previewUrl,
-	fullSrc: entry.fullUrl,
+	fullSrc: entry.lightboxUrl,
+	srcSet: entry.responsiveSrcSet,
+	sizes: entry.responsiveSizes,
+	width: entry.width,
+	height: entry.height,
 	number: index + 1,
 }));
 ---
 
 <PortfolioLayout title="Findwhy" description="Findwhy illustration portfolio." active="illustration">
-	<Gallery items={illustrations} type="image" />
+	<Gallery items={illustrations} type="image" masonry />
 </PortfolioLayout>

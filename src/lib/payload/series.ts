@@ -14,11 +14,19 @@ interface PayloadSeries {
 }
 interface PayloadCollectionResponse<T> { docs: T[]; hasNextPage: boolean; nextPage: number | null }
 
-export interface SeriesVideo { src: string; poster?: string; posterPreviewUrl?: string }
+export interface SeriesVideo {
+	src: string;
+	poster?: string;
+	posterPreviewUrl?: string;
+	posterWidth?: number;
+	posterHeight?: number;
+}
 export interface SeriesItem {
 	slug: string; titleZh: string; titleEn: string; descriptionZh: string; descriptionEn: string;
 	year?: number; images: string[]; imageMedia: ImageUrls[]; videos: SeriesVideo[];
 	cover?: string; coverPreviewUrl?: string; order: number;
+	coverWidth?: number; coverHeight?: number;
+	coverSrcSet?: string; coverSizes?: string;
 }
 
 const mediaUrl = (media: PayloadImage | PayloadVideo | number | string | null | undefined) => {
@@ -30,7 +38,7 @@ const mapSeries = (document: PayloadSeries): SeriesItem => {
 	const sourceImages = document.images?.length ? document.images : (document.gallery_images ?? []);
 	const imageMedia = sourceImages.map(getImageUrls).filter((image): image is ImageUrls => image !== null);
 	const images = imageMedia.map((image) => image.fullUrl);
-	const videos = (document.videos ?? []).map((video) => {
+	const videos = (document.videos ?? []).map((video): SeriesVideo | null => {
 		const src = mediaUrl(video);
 		if (!src) return null;
 		const poster = typeof video === 'object' ? getImageUrls(video.poster) : null;
@@ -38,6 +46,8 @@ const mapSeries = (document: PayloadSeries): SeriesItem => {
 			src,
 			poster: poster?.fullUrl,
 			posterPreviewUrl: poster?.previewUrl,
+			posterWidth: poster?.previewWidth,
+			posterHeight: poster?.previewHeight,
 		};
 	}).filter((video): video is SeriesVideo => video !== null);
 	const cover = getImageUrls(document.cover) ?? getImageUrls(document.cover_image);
@@ -47,6 +57,10 @@ const mapSeries = (document: PayloadSeries): SeriesItem => {
 		year: document.year ?? undefined, images, imageMedia, videos,
 		cover: cover?.fullUrl,
 		coverPreviewUrl: cover?.previewUrl,
+		coverWidth: cover?.previewWidth,
+		coverHeight: cover?.previewHeight,
+		coverSrcSet: cover?.responsiveSrcSet,
+		coverSizes: cover?.responsiveSizes,
 		order: document.order ?? Number.POSITIVE_INFINITY,
 	};
 };

@@ -9,6 +9,8 @@ const videoItems = series.videos.map((video, index) => ({
 	type: 'video' as const,
 	url: video.src,
 	cover: video.posterPreviewUrl ?? video.poster,
+	width: video.posterWidth,
+	height: video.posterHeight,
 	order: index,
 	number: index + 1,
 }));
@@ -16,6 +18,11 @@ const imageItems = series.imageMedia.map((image, index) => ({
 	type: 'image' as const,
 	url: image.previewUrl,
 	fullUrl: image.fullUrl,
+	lightboxUrl: image.lightboxUrl,
+	srcSet: image.responsiveSrcSet,
+	sizes: image.responsiveSizes,
+	width: image.previewWidth,
+	height: image.previewHeight,
 	order: videoItems.length + index,
 	number: index + 1,
 	lightboxIndex: index,
@@ -25,7 +32,7 @@ const columns = Array.from({ length: 4 }, (_, column) => mediaList.filter((_, in
 const lightboxImages = imageItems.map((image) => ({
 	kind: 'image' as const,
 	previewSrc: image.url,
-	fullSrc: image.fullUrl,
+	fullSrc: image.lightboxUrl,
 	number: image.number,
 }));
 ---
@@ -41,11 +48,11 @@ const lightboxImages = imageItems.map((image) => ({
 			{columns.map((column) => <div class="gallery-column">
 				{column.map((item) => item.type === 'image' ? (
 					<button class="media-button image-button" type="button" data-lightbox-index={item.lightboxIndex} aria-label={`View series image ${item.lightboxIndex + 1}`}>
-						<img src={item.url} alt={`Series image ${item.lightboxIndex + 1}`} loading={item.order < 4 ? 'eager' : 'lazy'} decoding="async" />
+						<img src={item.url} srcset={item.srcSet} sizes={item.sizes} width={item.width} height={item.height} alt={`Series image ${item.lightboxIndex + 1}`} loading={item.order < 4 ? 'eager' : 'lazy'} decoding="async" />
 					</button>
 				) : (
 					<button class="media-button video-button" type="button" data-video-src={item.url} aria-label={`Play series video ${item.number}`}>
-						{item.cover ? <img src={item.cover} alt="" loading="eager" decoding="async" /> : <span class="video-placeholder" aria-hidden="true"></span>}
+						{item.cover ? <img src={item.cover} width={item.width} height={item.height} alt="" loading="eager" decoding="async" /> : <span class="video-placeholder" aria-hidden="true"></span>}
 						<span class="play-icon" aria-hidden="true"></span>
 					</button>
 				))}
