@@ -1,4 +1,4 @@
-const payloadApiUrl = import.meta.env.PAYLOAD_API_URL?.replace(/\/+$/, '');
+const payloadApiUrl = (process.env.PAYLOAD_API_URL ?? import.meta.env.PAYLOAD_API_URL)?.replace(/\/+$/, '');
 
 if (!payloadApiUrl) {
 	throw new Error('PAYLOAD_API_URL is required to read content from Payload CMS.');

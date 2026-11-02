@@ -9,10 +9,67 @@ const payloadAnimations = await getAnimations();
 const animations = payloadAnimations.map((entry, index) => ({
 	src: entry.video,
 	poster: entry.posterPreviewUrl ?? entry.poster,
+	width: entry.posterWidth,
+	height: entry.posterHeight,
 	number: index + 1,
 }));
 ---
 
 <PortfolioLayout title="Findwhy — Animation" description="Findwhy animation portfolio." active="animation">
-	<Gallery items={animations} type="video" />
+	<Gallery items={animations} type="video" masonry />
 </PortfolioLayout>
+
+<script>
+	// Only this route adjusts tracks; Gallery's markup, ordering and breakpoints
+	// remain authoritative. Round shared boundaries, not independent widths.
+	const gallery = document.querySelector<HTMLElement>('.gallery[data-gallery="video"].masonry');
+	if (gallery) {
+		let frame = 0;
+		const geometry = new WeakMap<HTMLElement, string>();
+		const alignColumns = () => {
+			frame = 0;
+			const layout = Array.from(gallery.querySelectorAll<HTMLElement>('.masonry-layout'))
+				.find((element) => getComputedStyle(element).display !== 'none');
+			if (!layout) return;
+			const bounds = layout.getBoundingClientRect();
+			const count = layout.children.length;
+			const dpr = window.devicePixelRatio || 1;
+			if (bounds.width <= 0 || count === 0) return;
+			const signature = `${bounds.left}:${bounds.width}:${count}:${dpr}`;
+			if (geometry.get(layout) === signature) return;
+
+			// Preserve the exact outer edges even at fractional browser zoom levels.
+			// Interior edges use physical pixels; their differences sum to 100%.
+			const edges = Array.from({ length: count + 1 }, (_, index) =>
+				index === 0 ? bounds.left : index === count ? bounds.right
+					: Math.round((bounds.left + bounds.width * index / count) * dpr) / dpr);
+			const widths = edges.slice(1).map((edge, index) => edge - edges[index]);
+			if (widths.some((width) => width <= 0)) return;
+			// Let the final track absorb CSS layout-unit rounding at fractional DPRs.
+			const tracks = [...widths.slice(0, -1).map((width) => `${width}px`), 'minmax(0, 1fr)'].join(' ');
+			if (layout.style.gridTemplateColumns !== tracks) layout.style.gridTemplateColumns = tracks;
+			geometry.set(layout, signature);
+		};
+		const schedule = () => {
+			if (!frame) frame = requestAnimationFrame(alignColumns);
+		};
+		let observedWidth = -1;
+		const observer = new ResizeObserver(([entry]) => {
+			// Track height changes are expected; they must not cause a feedback loop.
+			if (entry.contentRect.width === observedWidth) return;
+			observedWidth = entry.contentRect.width;
+			schedule();
+		});
+		observer.observe(gallery);
+		window.addEventListener('resize', schedule, { passive: true });
+
+		let resolution: MediaQueryList;
+		const watchResolution = () => {
+			resolution?.removeEventListener('change', watchResolution);
+			resolution = matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+			resolution.addEventListener('change', watchResolution);
+			schedule();
+		};
+		watchResolution();
+	}
+</script>

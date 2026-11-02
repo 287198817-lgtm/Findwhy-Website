@@ -1,10 +1,10 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
-import vercel from '@astrojs/vercel';
+import node from '@astrojs/node';
 
 // https://astro.build/config
 export default defineConfig({
-	adapter: vercel(),
+	adapter: node({ mode: 'standalone' }),
 	vite: {
 		build: {
 			target: ['safari16.2', 'ios16.2', 'chrome100', 'edge100', 'firefox100'],

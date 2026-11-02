@@ -1,9 +1,9 @@
 ---
 import ImageLightbox from './ImageLightbox.astro';
 
-interface Item { src: string; fullSrc?: string; poster?: string; number: number; kind?: 'image' | 'series'; titleZh?: string; titleEn?: string; href?: string }
-interface Props { items: Item[]; type: 'image' | 'video'; columns?: number; seriesTitleMode?: 'localized' | 'bilingual' }
-const { items, type, columns: columnCount = 4, seriesTitleMode = 'localized' } = Astro.props;
+interface Item { src: string; srcSet?: string; sizes?: string; fullSrc?: string; poster?: string; width?: number; height?: number; number: number; kind?: 'image' | 'series'; titleZh?: string; titleEn?: string; href?: string; lightboxIndex?: number }
+interface Props { items: Item[]; type: 'image' | 'video'; columns?: number; masonry?: boolean; seriesTitleMode?: 'localized' | 'bilingual' }
+const { items, type, columns: columnCount = 4, masonry = false, seriesTitleMode = 'localized' } = Astro.props;
 let lightboxIndex = 0;
 const displayItems = items.map((item) => item.kind === 'series'
 	? item
@@ -12,12 +12,49 @@ const lightboxItems = items
 	.filter((item) => item.kind !== 'series')
 	.map((item) => ({ ...item, previewSrc: item.src, fullSrc: item.fullSrc ?? item.src }));
 const columns = Array.from({ length: columnCount }, (_, column) => displayItems.filter((_, index) => index % columnCount === column));
+const masonryLayouts = [
+	{ name: 'desktop', count: 4 },
+	{ name: 'tablet', count: 3 },
+	{ name: 'mobile', count: 2 },
+].map((layout) => ({
+	...layout,
+	columns: Array.from({ length: layout.count }, (_, column) => displayItems.filter((_, index) => index % layout.count === column)),
+}));
 ---
 
-<section class:list={['gallery', { 'two-column': columnCount === 2 }]} data-gallery={type} aria-label={type === 'image' ? 'Illustration works' : 'Animation works'}>
-	{type === 'video' ? displayItems.map((item) => (
+<section class:list={['gallery', { masonry, 'two-column': columnCount === 2 }]} data-gallery={type} aria-label={type === 'image' ? 'Illustration works' : 'Animation works'}>
+	{masonry ? masonryLayouts.map((layout) => (
+		<div class:list={['masonry-layout', `masonry-${layout.name}`]} data-masonry-layout={layout.name}>
+			{layout.columns.map((column) => (
+				<div class="masonry-column">
+					{column.map((item) => type === 'video' ? (
+						<div class="media-item video-item" data-order={item.number}>
+							<video poster={item.poster} width={item.width} height={item.height} muted loop playsinline preload="metadata" aria-label={`Findwhy animation ${item.number}`}>
+								<source src={item.src} type="video/mp4" />
+							</video>
+						</div>
+					) : item.kind === 'series' ? (
+						<a class="media-item series-item" data-order={item.number} href={item.href} aria-label={`Open series ${item.titleEn}`}>
+							<img src={item.src} srcset={item.srcSet} sizes={item.sizes} alt={item.titleEn ?? 'Illustration series'} width={item.width} height={item.height} loading={item.number <= 4 ? 'eager' : 'lazy'} decoding="async" />
+							{seriesTitleMode === 'bilingual' ? (
+								<span class="series-label">
+									<span class="series-titles"><span>{item.titleZh}</span><span>{item.titleEn}</span></span>
+								</span>
+							) : (
+								<span class="series-label translatable" data-en={item.titleEn} data-zh={item.titleZh}>{item.titleEn}</span>
+							)}
+						</a>
+					) : (
+						<button class="media-item image-item" data-order={item.number} type="button" data-lightbox-index={item.lightboxIndex} aria-label={`Open illustration ${item.number}`}>
+							<img src={item.src} srcset={item.srcSet} sizes={item.sizes} alt={`Findwhy illustration ${item.number}`} width={item.width} height={item.height} loading={item.number <= 4 ? 'eager' : 'lazy'} decoding="async" />
+						</button>
+					))}
+				</div>
+			))}
+		</div>
+	)) : type === 'video' ? displayItems.map((item) => (
 		<div class="media-item video-item">
-			<video poster={item.poster} muted loop playsinline preload="metadata" aria-label={`Findwhy animation ${item.number}`}>
+			<video poster={item.poster} width={item.width} height={item.height} muted loop playsinline preload="metadata" aria-label={`Findwhy animation ${item.number}`}>
 				<source src={item.src} type="video/mp4" />
 			</video>
 		</div>
@@ -25,7 +62,7 @@ const columns = Array.from({ length: columnCount }, (_, column) => displayItems.
 		<div class="gallery-column">
 			{column.map((item) => item.kind === 'series' ? (
 				<a class="media-item series-item" href={item.href} aria-label={`Open series ${item.titleEn}`}>
-					<img src={item.src} alt={item.titleEn ?? 'Illustration series'} loading={item.number <= 4 ? 'eager' : 'lazy'} decoding="async" />
+					<img src={item.src} srcset={item.srcSet} sizes={item.sizes} alt={item.titleEn ?? 'Illustration series'} width={item.width} height={item.height} loading={item.number <= 4 ? 'eager' : 'lazy'} decoding="async" />
 					{seriesTitleMode === 'bilingual' ? (
 						<span class="series-label">
 							<span class="series-titles"><span>{item.titleZh}</span><span>{item.titleEn}</span></span>
@@ -36,7 +73,7 @@ const columns = Array.from({ length: columnCount }, (_, column) => displayItems.
 				</a>
 			) : (
 				<button class="media-item image-item" type="button" data-lightbox-index={item.lightboxIndex} aria-label={`Open illustration ${item.number}`}>
-					<img src={item.src} alt={`Findwhy illustration ${item.number}`} loading={item.number <= 4 ? 'eager' : 'lazy'} decoding="async" />
+				<img src={item.src} srcset={item.srcSet} sizes={item.sizes} alt={`Findwhy illustration ${item.number}`} width={item.width} height={item.height} loading={item.number <= 4 ? 'eager' : 'lazy'} decoding="async" />
 				</button>
 			))}
 		</div>
@@ -45,7 +82,58 @@ const columns = Array.from({ length: columnCount }, (_, column) => displayItems.
 
 {type === 'image' && lightboxItems.length > 0 && <ImageLightbox items={lightboxItems} triggerSelector=".gallery .image-item" ariaLabel="Illustration viewer" />}
 
-<script define:vars={{ type }}>
+<script define:vars={{ type, masonry }}>
+	if (masonry) {
+		const initViewportReveal = () => {
+			const gallery = document.querySelector('.gallery.masonry');
+			const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+			if (!gallery || reduceMotion || !('IntersectionObserver' in window)) return;
+
+			const activeLayout = Array.from(gallery.querySelectorAll('.masonry-layout'))
+				.find((layout) => window.getComputedStyle(layout).display !== 'none');
+			if (!activeLayout || activeLayout.dataset.revealInitialized === 'true') return;
+
+			activeLayout.dataset.revealInitialized = 'true';
+			const items = Array.from(activeLayout.querySelectorAll('.media-item'));
+			const belowViewportItems = items.filter((item) => item.getBoundingClientRect().top > window.innerHeight);
+			const observer = new IntersectionObserver((entries) => {
+				entries.forEach((entry) => {
+					if (!entry.isIntersecting || entry.target.dataset.revealPlayed === 'true') return;
+
+					entry.target.dataset.revealPlayed = 'true';
+					entry.target.classList.add('viewport-reveal');
+					entry.target.addEventListener('animationend', () => {
+						entry.target.classList.remove('viewport-reveal');
+					}, { once: true });
+					observer.unobserve(entry.target);
+				});
+			}, { threshold: 0.01 });
+
+			belowViewportItems.forEach((item) => observer.observe(item));
+		};
+
+		const scheduleViewportReveal = () => {
+			window.requestAnimationFrame(() => {
+				window.requestAnimationFrame(initViewportReveal);
+			});
+		};
+
+		if (document.readyState === 'loading') {
+			document.addEventListener('DOMContentLoaded', scheduleViewportReveal, { once: true });
+		} else {
+			scheduleViewportReveal();
+		}
+
+		let resizeFrame = 0;
+		window.addEventListener('resize', () => {
+			if (resizeFrame !== 0) window.cancelAnimationFrame(resizeFrame);
+			resizeFrame = window.requestAnimationFrame(() => {
+				resizeFrame = 0;
+				initViewportReveal();
+			});
+		});
+	}
+
 	if (type === 'video') {
 		const videos = Array.from(document.querySelectorAll('video'));
 		const supportsHover = () => window.matchMedia('(hover: hover) and (pointer: fine)').matches;
@@ -74,6 +162,15 @@ const columns = Array.from({ length: columnCount }, (_, column) => displayItems.
 <style>
 	.gallery { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 50px; width: 100%; padding: 50px; }
 	.gallery.two-column { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; max-width: none; }
+	.gallery.masonry { display: block; padding: 0; line-height: 0; }
+	.masonry-layout { display: none; width: 100%; gap: 0; }
+	.masonry-layout.masonry-desktop { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+	.masonry-column { display: flex; flex-direction: column; min-width: 0; gap: 0; }
+	.gallery.masonry .media-item.viewport-reveal { animation: galleryReveal 400ms ease-out both; }
+	@keyframes galleryReveal {
+		from { opacity: 0; }
+		to { opacity: 1; }
+	}
 	.gallery-column { display: flex; flex-direction: column; gap: 50px; min-width: 0; }
 	.media-item { display: block; width: 100%; margin: 0; padding: 0; border: 0; background: transparent; overflow: hidden; }
 	.image-item { cursor: zoom-in; }
@@ -88,9 +185,20 @@ const columns = Array.from({ length: columnCount }, (_, column) => displayItems.
 	.series-item:hover .series-label, .series-item:focus-visible .series-label { opacity: 1; }
 	.series-item:focus-visible { outline: 1px solid #000; outline-offset: 5px; }
 	.video-item { cursor: pointer; }
+	@media (max-width: 1024px) {
+		.masonry-layout.masonry-desktop { display: none; }
+		.masonry-layout.masonry-tablet { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+	}
 	@media (max-width: 809px) {
 		.gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; padding: 42px 20px 60px; }
 		.gallery-column { gap: 24px; }
+	}
+	@media (max-width: 600px) {
+		.masonry-layout.masonry-tablet { display: none; }
+		.masonry-layout.masonry-mobile { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.gallery.masonry .media-item.viewport-reveal { animation: none; }
 	}
 	@media (max-width: 520px) { .gallery { grid-template-columns: 1fr; } }
 </style>

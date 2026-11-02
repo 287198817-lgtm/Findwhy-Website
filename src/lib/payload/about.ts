@@ -28,6 +28,10 @@ export interface AboutContent {
 	introEn: string[];
 	portrait?: string;
 	portraitPreviewUrl?: string;
+	portraitSrcSet?: string;
+	portraitSizes?: string;
+	portraitWidth?: number;
+	portraitHeight?: number;
 	servicesTitleZh: string;
 	servicesTitleEn: string;
 	servicesZh: string[];
@@ -74,6 +78,10 @@ export const getAbout = async (): Promise<AboutContent> => {
 			introEn: textItems(about.intro_en),
 			portrait: portrait?.fullUrl,
 			portraitPreviewUrl: portrait?.previewUrl,
+			portraitSrcSet: portrait?.responsiveSrcSet,
+			portraitSizes: portrait?.responsiveSizes,
+			portraitWidth: portrait?.previewWidth,
+			portraitHeight: portrait?.previewHeight,
 			servicesTitleZh: about.services_title_zh ?? '',
 			servicesTitleEn: about.services_title_en ?? '',
 			servicesZh: textItems(about.services_zh),
