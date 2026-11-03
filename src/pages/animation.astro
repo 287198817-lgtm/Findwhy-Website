@@ -19,6 +19,12 @@ const animations = payloadAnimations.map((entry, index) => ({
 	<Gallery items={animations} type="video" masonry />
 </PortfolioLayout>
 
+<style is:global>
+	/* Overlap vertically stacked tiles by 1px so sub-pixel rounding
+	   between fractional tile heights cannot show a white seam. */
+	.gallery[data-gallery="video"].masonry .masonry-column > .media-item + .media-item { margin-top: -1px; }
+</style>
+
 <script>
 	// Only this route adjusts tracks; Gallery's markup, ordering and breakpoints
 	// remain authoritative. Round shared boundaries, not independent widths.
